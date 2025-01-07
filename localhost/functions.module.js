@@ -81,7 +81,7 @@ let f_input_change = function(o_e){
     let s_prop_sync = (o_e.target.getAttribute('s_prop_sync'));
     if(s_prop_sync){
         let v = o_e.target.value;
-        if(o_e.target.type == 'number'){
+        if(o_e.target.type == 'number' || o_e.target.type == 'range'){
             v = parseFloat(v);
         }
         setByPath(o_state, s_prop_sync, v)
