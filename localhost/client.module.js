@@ -46,6 +46,7 @@ o_variables.n_rem_padding_interactive_elements = 0.5; // adjust padding for inte
 f_add_css(
     `
     body{
+        cursor:url(./cursor.cur), auto;
         min-height: 100vh;
         min-width: 100vw;
         /* background: rgba(0,0,0,0.84);*/
@@ -430,67 +431,80 @@ document.body.appendChild(
             style: "width:100vw",
             a_o: [
                 {
-                    innerText: "Hello",
-                },
-                {
-                    s_tag: 'input',  
-                    type: 'number',
-                    s_prop_sync: 'n_number'
-                },
-                {
-                    f_s_innerText: ()=>`n1 ${o_state.n_1}`, 
-                    s_prop_sync: 'n_1'
+                    style: "display:flex;flex-direction:row",
+                    a_o: [
+                        {
+                            f_s_innerText: ()=>`n1 ${o_state.n_1}`, 
+                            s_prop_sync: 'n_1'
+                        },
+                        {
+                            s_tag: "input", 
+                            type: "range", 
+                            min: 0.0, 
+                            max: 1.0, 
+                            step:0.001,
+                            s_prop_sync: 'n_1'
+                        },
 
-                } ,
-                {
-                    s_tag: "input", 
-                    type: "range", 
-                    min: 0.0, 
-                    max: 1.0, 
-                    step:0.001,
-                    s_prop_sync: 'n_1'
+                    ]
                 },
                 {
-                    f_s_innerText: ()=>`n2 ${o_state.n_2}`, 
-                    s_prop_sync: 'n_2'
-                },
-                {
-                    s_tag: "input", 
-                    type: "range", 
-                    min: 0.0, 
-                    max: 1.0, 
-                    step:0.001,
-                    s_prop_sync: 'n_2'
-                },
+                    style: "display:flex;flex-direction:row",
+                    a_o: [
+                        {
+                            f_s_innerText: ()=>`n2 ${o_state.n_2}`, 
+                            s_prop_sync: 'n_2'
+                        },
+                        {
+                            s_tag: "input", 
+                            type: "range", 
+                            min: 0.0, 
+                            max: 1.0, 
+                            step:0.001,
+                            s_prop_sync: 'n_2'
+                        },
 
-                {
-                    innerText: "n_fps", 
-                    f_s_innerText: ()=>`n_fps ${o_state.n_fps}`, 
-                    s_prop_sync: 'n_fps'
-                } ,
-                {
-                    s_tag: "input", 
-                    type: "range", 
-                    min: 1.0, 
-                    max: 120.0, 
-                    s_prop_sync: 'n_fps'
+                    ]
                 },
                 {
-                    innerText: "n_factor_resolution", 
-                    f_s_innerText: ()=>`n_factor_resolution ${o_state.n_factor_resolution}`, 
-                    s_prop_sync: 'n_factor_resolution'
-                } ,
-                {
-                    s_tag: "input", 
-                    type: "range", 
-                    min: 0.01, 
-                    max: 1.0,
-                    step:0.01, 
-                    s_prop_sync: 'n_factor_resolution', 
-                    oninput: ()=>{
-                        f_resize()
+                    style: "display:flex;flex-direction:row",
+                    a_o: [
+                        {
+                            innerText: "n_fps", 
+                            f_s_innerText: ()=>`n_fps ${o_state.n_fps}`, 
+                            s_prop_sync: 'n_fps'
+                        } ,
+                        {
+                            s_tag: "input", 
+                            type: "range", 
+                            min: 1.0, 
+                            max: 120.0, 
+                            s_prop_sync: 'n_fps'
+                        },
 
-                    }
+                    ]
+                },
+                {
+                    style: "display:flex;flex-direction:row",
+                    a_o: [
+                        {
+                            innerText: "n_factor_resolution", 
+                            f_s_innerText: ()=>`n_factor_resolution ${o_state.n_factor_resolution}`, 
+                            s_prop_sync: 'n_factor_resolution'
+                        } ,
+                        {
+                            s_tag: "input", 
+                            type: "range", 
+                            min: 0.01, 
+                            max: 10.0,
+                            step:0.01, 
+                            s_prop_sync: 'n_factor_resolution', 
+                            oninput: ()=>{
+                                f_resize()
+        
+                            }
+                        },
+                    ]
                 },
             ]
         }
@@ -499,8 +513,8 @@ document.body.appendChild(
 
 // Attach listeners to all inputs
 document.querySelectorAll('input').forEach(input => {
-input.addEventListener('input', f_input_change);  // For live updates
-input.addEventListener('change', f_input_change); // For committed changes
+    input.addEventListener('input', f_input_change);  // For live updates
+    input.addEventListener('change', f_input_change); // For committed changes
 });
 document.querySelectorAll('textarea').forEach(input => {
 input.addEventListener('input', f_input_change);  // For live updates
