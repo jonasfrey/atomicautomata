@@ -69,6 +69,50 @@ f_add_css(
     input{
         width:100%
     }
+    label{
+        background:rgba(0,0,0,0.8);
+        padding: 0.2rem;
+        color: #ddd;
+    }
+    input[type='range'] {
+        -webkit-appearance: none;
+        width: 100%;
+        height: 25px;
+        background: #d3d3d3;
+        outline: none;
+        opacity: 0.7;
+        -webkit-transition: .2s;
+        transition: opacity .2s;
+      }
+      
+      input[type='range']:hover {
+        opacity: 1;
+      }
+      
+      input[type='range']::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 25px;
+        height: 25px;
+        background: #04AA6D;
+        cursor: pointer;
+      }
+      
+      input[type='range']::-moz-range-thumb {
+        width: 25px;
+        height: 25px;
+        background: #04AA6D;
+        cursor: pointer;
+      }
+
+      input[type="number"] {
+        width: 10%;
+        flex: 0 0 auto; /* Ensure the number input takes only as much space as it needs */
+      }
+      
+    //   input[type="range"] {
+    //     flex: 1 1 auto; /* Allow the range input to grow and take up remaining space */
+    //   }
     ${
         f_s_css_from_o_variables(
             o_variables
@@ -434,7 +478,16 @@ document.body.appendChild(
                     style: "display:flex;flex-direction:row",
                     a_o: [
                         {
-                            f_s_innerText: ()=>`n1 ${o_state.n_1}`, 
+                            s_tag: "label",
+                            f_s_innerText: ()=>`n1 ${o_state.n_1.toFixed(3)}`, 
+                            s_prop_sync: 'n_1'
+                        },
+                        {
+                            s_tag: 'input', 
+                            type: "number", 
+                            min: 0.0, 
+                            max: 1.0, 
+                            step:0.001,
                             s_prop_sync: 'n_1'
                         },
                         {
@@ -452,7 +505,16 @@ document.body.appendChild(
                     style: "display:flex;flex-direction:row",
                     a_o: [
                         {
-                            f_s_innerText: ()=>`n2 ${o_state.n_2}`, 
+                            s_tag: "label",
+                            f_s_innerText: ()=>`n2 ${o_state.n_2.toFixed(3)}`, 
+                            s_prop_sync: 'n_2'
+                        },
+                        {
+                            s_tag: 'input', 
+                            type: "number", 
+                            min: 0.0, 
+                            max: 1.0, 
+                            step:0.001,
                             s_prop_sync: 'n_2'
                         },
                         {
@@ -470,10 +532,18 @@ document.body.appendChild(
                     style: "display:flex;flex-direction:row",
                     a_o: [
                         {
+                            s_tag: "label",
                             innerText: "n_fps", 
-                            f_s_innerText: ()=>`n_fps ${o_state.n_fps}`, 
+                            f_s_innerText: ()=>`n_fps ${o_state.n_fps.toFixed(1)}`, 
                             s_prop_sync: 'n_fps'
                         } ,
+                        {
+                            s_tag: 'input', 
+                            type: "number", 
+                            min: 1.0, 
+                            max: 120.0,
+                            s_prop_sync: 'n_fps'
+                        },
                         {
                             s_tag: "input", 
                             type: "range", 
@@ -488,10 +558,19 @@ document.body.appendChild(
                     style: "display:flex;flex-direction:row",
                     a_o: [
                         {
+                            s_tag: "label",
                             innerText: "n_factor_resolution", 
-                            f_s_innerText: ()=>`n_factor_resolution ${o_state.n_factor_resolution}`, 
+                            f_s_innerText: ()=>`n_factor_resolution ${o_state.n_factor_resolution.toFixed(2)}`, 
                             s_prop_sync: 'n_factor_resolution'
                         } ,
+                        {
+                            s_tag: 'input', 
+                            type: "number", 
+                            min: 0.01, 
+                            max: 10.0,
+                            step:0.01, 
+                            s_prop_sync: 'n_factor_resolution'
+                        },
                         {
                             s_tag: "input", 
                             type: "range", 
@@ -520,12 +599,14 @@ document.querySelectorAll('textarea').forEach(input => {
 input.addEventListener('input', f_input_change);  // For live updates
 input.addEventListener('change', f_input_change); // For committed changes
 });
-
+function isInputElement(variable) {
+    return variable instanceof HTMLElement && 'value' in variable;
+}
 o_state = createNestedProxy(o_state, '', (path, oldValue, newValue) => {
     console.log(`Path: ${path}, Old Value: ${oldValue}, New Value: ${newValue}`);
     path = path.substring(1)
     let a_o_el = document.querySelectorAll(`[s_prop_sync="${path}"]`);
-
+    console.log(a_o_el)
     let o_ufloc = o_state[`o_ufloc__${path}`];
     if(o_ufloc){
         if (typeof newValue === 'number') {
@@ -557,7 +638,12 @@ o_state = createNestedProxy(o_state, '', (path, oldValue, newValue) => {
     // console.log(path)
     // debugger
     for(let o_el of a_o_el){
-        if(o_el.value){
+        if(isInputElement(o_el)){
+            console.log('setting value')
+            if(globalThis.event.target == o_el){
+                continue // dont set on current element interacted by user
+            }
+
             o_el.value = newValue
         }
         if(o_el?.o_meta?.f_s_innerText){
