@@ -6,40 +6,72 @@ import {
     f_s_css_from_o_variables
 } from "https://deno.land/x/f_add_css@2.0.0/mod.js"
 
-import {
-    f_o_html__and_make_renderable,
-}from 
-'./f_o_html__and_make_renderable.module.js'
-
-// 'https://deno.land/x/f_o_html_from_o_js@5.0.0/mod.js'
-
-let o_mod_notifire = await import('https://deno.land/x/f_o_html_from_o_js@5.0.0/localhost/jsh_modules/notifire/mod.js');
 
 import {
     f_o_webgl_program,
     f_delete_o_webgl_program,
     f_resize_canvas_from_o_webgl_program,
-    f_render_from_o_webgl_program
-} from "https://deno.land/x/handyhelpers@5.0.0/mod.js"
+    f_render_from_o_webgl_program,
+    f_o_proxified_and_add_listeners, 
+    f_o_html_from_o_js
+} from "https://deno.land/x/handyhelpers@5.1.2/mod.js"
 
 import {
     f_s_hms__from_n_ts_ms_utc,
 } from "https://deno.land/x/date_functions@2.0.0/mod.js"  
-import { createNestedProxy, f_input_change } from "./functions.module.js";
 
 let a_o_shader = []
 let n_idx_a_o_shader = 0;
-let o_state = {
-    n_1: 0.5, 
-    n_2: 0.2, 
-    n_fps: 1,
-    n_factor_resolution: 0.2,
-    o_shader: {},
-    o_state_notifire: {},
-    n_idx_a_o_shader,
-    a_o_shader,
-    n_number: 23,
-}
+let o_state_ufloc = {}
+let o_state = f_o_proxified_and_add_listeners(
+    {
+        n_what_the_fuck: 10,
+        n_1: 0.5, 
+        n_2: 0.2, 
+        n_fps: 1,
+        n_factor_resolution: 0.2,
+        o_shader: {},
+        o_state_notifire: {},
+        n_idx_a_o_shader,
+        a_o_shader,
+        n_number: 23,
+    },
+    ()=>{},
+    (a_s_path, v_old, v_new) => {
+        let s_path = a_s_path.join('.');
+        let o_ufloc = o_state_ufloc[`o_ufloc__${s_path}`];
+        
+        if(o_ufloc){
+            if (typeof v_new === 'number') {
+                o_webgl_program?.o_ctx.uniform1f( 
+                    o_ufloc,
+                    v_new
+                );
+            }
+            if (v_new?.length == 2) {
+                o_webgl_program?.o_ctx.uniform2f( 
+                    o_ufloc,
+                    v_new[0],v_new[1] 
+                );
+            }
+            if (v_new?.length == 3) {
+                o_webgl_program?.o_ctx.uniform3f( 
+                    o_ufloc,
+                    v_new[0],v_new[1],v_new[2]
+                );
+            }
+            if (v_new?.length == 4) {
+                o_webgl_program?.o_ctx.uniform4f( 
+                    o_ufloc,
+                    v_new[0],v_new[1],v_new[2],v_new[3]
+                );
+            }
+    
+        }
+
+    }
+)
+globalThis.o_state = o_state
 
 o_variables.n_rem_font_size_base = 1. // adjust font size, other variables can also be adapted before adding the css to the dom
 o_variables.n_rem_padding_interactive_elements = 0.5; // adjust padding for interactive elements 
@@ -327,8 +359,8 @@ let f_render_from_o_webgl_program_custom = function(
     o_gl.uniform1i(o_uloc_o_texture_2, n_idx_texture);  
 
 
-    o_state.o_ufloc__n_1 = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_1');
-    o_state.o_ufloc__n_2 = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_2');
+    o_state_ufloc.o_ufloc__n_1 = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_1');
+    o_state_ufloc.o_ufloc__n_2 = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_2');
     // Render the cellular automata step to the offscreen framebuffer
     o_webgl_program.o_ctx.drawArrays(o_webgl_program.o_ctx.TRIANGLE_STRIP, 0, 4);
 
@@ -413,22 +445,6 @@ o_canvas.addEventListener('mouseup', () => {
     isMouseDown = false;
 });
 
-let o_el_time = document.createElement('div');
-o_el_time.id = 'o_el_time'
-
-
-
-
-let n_id_timeout = 0;
-globalThis.onpointermove = function(){
-    clearTimeout(n_id_timeout);
-    o_el_time.style.display = 'block'
-    n_id_timeout = setTimeout(()=>{
-        o_el_time.style.display = 'none'
-    },5000)
-}
-
-
 
 // Determine the current domain
 const s_hostname = globalThis.location.hostname;
@@ -470,17 +486,16 @@ globalThis.addEventListener('pointerdown', (o_e)=>{
 
 
 document.body.appendChild(
-    await f_o_html__and_make_renderable(
+    await f_o_html_from_o_js(
         {
             style: "width:100vw",
-            a_o: [
+            f_a_o: async ()=>[
                 {
                     style: "display:flex;flex-direction:row",
-                    a_o: [
+                    f_a_o: async ()=>[
                         {
                             s_tag: "label",
-                            f_s_innerText: ()=>`n1 ${o_state.n_1.toFixed(3)}`, 
-                            s_prop_sync: 'n_1'
+                            innerText: "n1",
                         },
                         {
                             s_tag: 'input', 
@@ -488,7 +503,7 @@ document.body.appendChild(
                             min: 0.0, 
                             max: 1.0, 
                             step:0.001,
-                            s_prop_sync: 'n_1'
+                            a_s_prop_sync: ['n_1']
                         },
                         {
                             s_tag: "input", 
@@ -496,18 +511,20 @@ document.body.appendChild(
                             min: 0.0, 
                             max: 1.0, 
                             step:0.001,
-                            s_prop_sync: 'n_1'
+                            a_s_prop_sync: ['n_1']
                         },
+
+                       
+
 
                     ]
                 },
                 {
                     style: "display:flex;flex-direction:row",
-                    a_o: [
+                    f_a_o: async ()=> [
                         {
                             s_tag: "label",
-                            f_s_innerText: ()=>`n2 ${o_state.n_2.toFixed(3)}`, 
-                            s_prop_sync: 'n_2'
+                            innerText: "n2",
                         },
                         {
                             s_tag: 'input', 
@@ -515,7 +532,7 @@ document.body.appendChild(
                             min: 0.0, 
                             max: 1.0, 
                             step:0.001,
-                            s_prop_sync: 'n_2'
+                            a_s_prop_sync: 'n_2'
                         },
                         {
                             s_tag: "input", 
@@ -523,45 +540,41 @@ document.body.appendChild(
                             min: 0.0, 
                             max: 1.0, 
                             step:0.001,
-                            s_prop_sync: 'n_2'
+                            a_s_prop_sync: 'n_2'
                         },
 
                     ]
                 },
                 {
                     style: "display:flex;flex-direction:row",
-                    a_o: [
+                    f_a_o: async ()=>[
                         {
                             s_tag: "label",
                             innerText: "n_fps", 
-                            f_s_innerText: ()=>`n_fps ${o_state.n_fps.toFixed(1)}`, 
-                            s_prop_sync: 'n_fps'
                         } ,
                         {
                             s_tag: 'input', 
                             type: "number", 
                             min: 1.0, 
                             max: 120.0,
-                            s_prop_sync: 'n_fps'
+                            a_s_prop_sync: 'n_fps'
                         },
                         {
                             s_tag: "input", 
                             type: "range", 
                             min: 1.0, 
                             max: 120.0, 
-                            s_prop_sync: 'n_fps'
+                            a_s_prop_sync: 'n_fps'
                         },
 
                     ]
                 },
                 {
                     style: "display:flex;flex-direction:row",
-                    a_o: [
+                    f_a_o:async ()=> [
                         {
                             s_tag: "label",
                             innerText: "n_factor_resolution", 
-                            f_s_innerText: ()=>`n_factor_resolution ${o_state.n_factor_resolution.toFixed(2)}`, 
-                            s_prop_sync: 'n_factor_resolution'
                         } ,
                         {
                             s_tag: 'input', 
@@ -569,7 +582,7 @@ document.body.appendChild(
                             min: 0.01, 
                             max: 10.0,
                             step:0.01, 
-                            s_prop_sync: 'n_factor_resolution'
+                            a_s_prop_sync: 'n_factor_resolution'
                         },
                         {
                             s_tag: "input", 
@@ -577,82 +590,21 @@ document.body.appendChild(
                             min: 0.01, 
                             max: 10.0,
                             step:0.01, 
-                            s_prop_sync: 'n_factor_resolution', 
+                            a_s_prop_sync: 'n_factor_resolution', 
                             oninput: ()=>{
                                 f_resize()
-        
                             }
                         },
                     ]
                 },
             ]
-        }
+        }, 
+        o_state
     )
 )
 
-// Attach listeners to all inputs
-document.querySelectorAll('input').forEach(input => {
-    input.addEventListener('input', f_input_change);  // For live updates
-    input.addEventListener('change', f_input_change); // For committed changes
-});
-document.querySelectorAll('textarea').forEach(input => {
-input.addEventListener('input', f_input_change);  // For live updates
-input.addEventListener('change', f_input_change); // For committed changes
-});
-function isInputElement(variable) {
-    return variable instanceof HTMLElement && 'value' in variable;
-}
-o_state = createNestedProxy(o_state, '', (path, oldValue, newValue) => {
-    console.log(`Path: ${path}, Old Value: ${oldValue}, New Value: ${newValue}`);
-    path = path.substring(1)
-    let a_o_el = document.querySelectorAll(`[s_prop_sync="${path}"]`);
-    console.log(a_o_el)
-    let o_ufloc = o_state[`o_ufloc__${path}`];
-    if(o_ufloc){
-        if (typeof newValue === 'number') {
-            o_webgl_program?.o_ctx.uniform1f( 
-                o_ufloc,
-                newValue
-            );
-        }
-        if (newValue?.length == 2) {
-            o_webgl_program?.o_ctx.uniform2f( 
-                o_ufloc,
-                newValue[0],newValue[1] 
-            );
-        }
-        if (newValue?.length == 3) {
-            o_webgl_program?.o_ctx.uniform3f( 
-                o_ufloc,
-                newValue[0],newValue[1],newValue[2]
-            );
-        }
-        if (newValue?.length == 4) {
-            o_webgl_program?.o_ctx.uniform4f( 
-                o_ufloc,
-                newValue[0],newValue[1],newValue[2],newValue[3]
-            );
-        }
 
-    }
-    // console.log(path)
-    // debugger
-    for(let o_el of a_o_el){
-        if(isInputElement(o_el)){
-            console.log('setting value')
-            if(globalThis.event.target == o_el){
-                continue // dont set on current element interacted by user
-            }
 
-            o_el.value = newValue
-        }
-        if(o_el?.o_meta?.f_s_innerText){
-            let s = o_el.o_meta.f_s_innerText();
-            o_el.innerText = s;
-        }
-    }
-});
-globalThis.o_state = o_state
 
 
 window.onmousemove = function(o_e){
