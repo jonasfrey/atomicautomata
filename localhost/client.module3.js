@@ -18,7 +18,7 @@ import {
     f_render_from_o_webgl_program,
     f_o_proxified_and_add_listeners, 
     f_o_html_from_o_js
-} from "https://deno.land/x/handyhelpers@5.1.2/mod.js"
+} from "https://deno.land/x/handyhelpers@5.1.5/mod.js"
 
 import {
     f_s_hms__from_n_ts_ms_utc,
@@ -131,6 +131,27 @@ import {
                                 s_tag: 'input', 
                                 type: "number", 
                                 a_s_prop_sync: ['n_1']
+                            },
+                            {
+                                s_tag: "input", 
+                                type: "range", 
+                                min: 0, 
+                                max: 1, 
+                                step: 0.01, 
+                                a_s_prop_sync: ["n_2"],
+                            },
+                            {
+                                s_tag: "input", 
+                                type: "range", 
+                                min: 0, 
+                                max: 1, 
+                                step: 0.01, 
+                                a_s_prop_sync: ["n_2"],
+                            },
+                            {
+                                s_tag: 'input', 
+                                type: "number", 
+                                a_s_prop_sync: ['n_2']
                             },
                         ]
                     }
