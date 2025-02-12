@@ -14,7 +14,7 @@ import {
     f_render_from_o_webgl_program,
     f_o_proxified_and_add_listeners, 
     f_o_html_from_o_js
-} from "https://deno.land/x/handyhelpers@5.1.8/mod.js"
+} from "https://deno.land/x/handyhelpers@5.1.82/mod.js"
 
 import {
     f_s_hms__from_n_ts_ms_utc,
@@ -25,28 +25,165 @@ let n_idx_a_o_shader = 0;
 let o_state_ufloc = {}
 let a_o_automata = [
     {
-        s_name: "", 
+        s_name: '0',
         s_glsl: `
-        `
-    }
+
+            if(n_nor_krnl > n_1 || n_nor_krnl < n_2){
+                n_new = n_last-n_nor_krnl;
+            }else{
+                n_new = n_last+n_nor_krnl;
+            }
+        `, 
+        a_s_variable: ['n_1', 'n_2'], 
+    },
+    {
+        s_name: 'i dont know',
+        s_glsl: `
+
+            if(n_nor_krnl < n_1){
+                n_new = n_last += 0.05;
+            }
+            if(n_nor_krnl > n_2){
+                n_new = n_last -= 0.05;
+            }
+        `, 
+        a_s_variable: ['n_1', 'n_2'], 
+    },
+    {
+        s_name: 'Threshold Invert',
+        s_glsl: `
+            if(n_nor_krnl > n_1) {
+                n_new = 1.0 - n_last;
+            } else {
+                n_new = n_nor_krnl;
+            }
+        `,
+        a_s_variable: ['n_1'],
+    },
+    {
+        s_name: 'Damped Oscillator',
+        s_glsl: `
+            n_new = n_last * n_1 + n_nor_krnl * (1.0 - n_1);
+        `,
+        a_s_variable: ['n_1'],
+    },
+    {
+        s_name: 'Edge Pulse',
+        s_glsl: `
+            if(n_nor_krnl > n_1 || n_nor_krnl < n_2) {
+                n_new = 1.0 - n_last;
+            } else {
+                n_new = 0.0;
+            }
+        `,
+        a_s_variable: ['n_1', 'n_2'],
+    },
+    {
+        s_name: 'Modulo Wave',
+        s_glsl: `
+            float n_mod = mod((n_last * n_1) + (n_nor_krnl * n_2), 1.0);
+            n_new = abs(sin(n_mod * 3.14159265 * 2.0));
+        `,
+        a_s_variable: ['n_1', 'n_2'],
+    },
+    {
+        s_name: 'Threshold Blend',
+        s_glsl: `
+            float n_diff = abs(n_nor_krnl - n_last);
+            n_new = mix(n_last, n_nor_krnl, smoothstep(n_2, n_1, n_diff));
+        `,
+        a_s_variable: ['n_1', 'n_2'],
+    },
+    {
+        s_name: 'Weighted Growth & Decay rule',
+        s_glsl: `
+            // Weighted Growth & Decay rule
+            if (n_nor_krnl > n_1) {  
+                n_new = n_last + (n_nor_krnl - n_last) * n_2; // Move toward neighborhood average  
+            } else if (n_nor_krnl < n_1) {  
+                n_new = n_last - (n_last - n_nor_krnl) * n_2; // Move away from neighborhood average  
+            } else {  
+                n_new = n_last;  
+            }
+        `, 
+        a_s_variable: ['n_1', 'n_2'], 
+    },
+    {
+        s_name: 'Pattern Stabilization (Thresholded Growth)',
+        s_glsl: `
+            // Pattern Stabilization (Thresholded Growth)
+            if (n_nor_krnl > n_1 && n_last < 0.5) {  
+                n_new = min(n_last + n_2, 1.0); // Increase brightness  
+            } else if (n_nor_krnl < n_1 && n_last > 0.5) {  
+                n_new = max(n_last - n_2, 0.0); // Decrease brightness  
+            } else {  
+                n_new = n_last;  
+            }
+        `, 
+        a_s_variable: ['n_1', 'n_2'], 
+    },
+    {
+        s_name: 'Reaction-Diffusion-Like Behavior',
+        s_glsl: `
+        // Reaction-Diffusion-Like Behavior
+        n_new = n_last + (n_nor_krnl - n_last) * n_1 - (n_last * (1.0 - n_last) * n_2);
+        `, 
+        a_s_variable: ['n_1', 'n_2'], 
+    },
+    {
+        s_name: 'Noise-Driven Chaos',
+        s_glsl: `
+        // Noise-Driven Chaos
+        float rand_val = fract(sin(dot(gl_FragCoord.xy ,vec2(12.9898,78.233))) * 43758.5453); // GLSL random
+        if (abs(n_nor_krnl - n_last) > n_1) {
+            n_new = clamp(n_last + (rand_val * 2.0 - 1.0) * n_2, 0.0, 1.0); // Small random fluctuations
+        } else {
+            n_new = n_last;
+        }
+        `, 
+        a_s_variable: ['n_1', 'n_2'], 
+    },
+    {
+        s_name: 'Conditional Cellular Flow', 
+        s_glsl: `
+        // Conditional Cellular Flow
+        if (n_last > n_1) {  
+            n_new = mix(n_nor_krnl, n_last, n_2); // Bias toward neighborhood if above n_1  
+        } else {  
+            n_new = mix(n_last, n_nor_krnl, n_2); // Bias toward self if below n_1  
+        }
+        `, 
+        a_s_variable: ['n_1', 'n_2'], 
+    },
+    // {
+    //     s_name: "", 
+    //     s_glsl: `
+    //         asdf
+    //     `, 
+    //     a_s_variable: ['n_1', 'n_2'], 
+    // }
+
 ]
-let a_s_type = [
-    '0', 
-    'Weighted Growth & Decay rule', 
-    'Pattern Stabilization (Thresholded Growth)', 
-    'Reaction-Diffusion-Like Behavior',
-    'Noise-Driven Chaos',
-    'Conditional Cellular Flow'
+
+
+let a_s_rule = [
+    ...a_o_automata.map(o=>{
+        return o.s_name
+    })
 ]
 let o_state = f_o_proxified_and_add_listeners(
     {
-        a_s_type,
-        s_type: a_s_type[0],
+        n_b_mouse_down: false, 
+        o_trn_mouse: [0,0],
+        a_o_automata,
+        o_automata: a_o_automata[0],
+        a_s_rule,
+        s_rule: a_s_rule[0],
         b_show_inputs: true,
         n_1: 0.5, 
         n_2: 0.005, 
         n_fps: 30,
-        n_factor_resolution: 0.2,
+        n_factor_resolution: 1.0,
         o_shader: {},
         o_state_notifire: {},
         n_idx_a_o_shader,
@@ -66,6 +203,7 @@ let o_state = f_o_proxified_and_add_listeners(
                 );
             }
             if (v_new?.length == 2) {
+                console.log(v_new[0],v_new[1] )
                 o_webgl_program?.o_ctx.uniform2f( 
                     o_ufloc,
                     v_new[0],v_new[1] 
@@ -199,12 +337,40 @@ o_webgl_program = f_o_webgl_program(
     uniform sampler2D o_texture_1;
     uniform float n_1;
     uniform float n_2;
-    uniform float n_idx_s_type;
+    uniform float n_idx_s_rule;
+    uniform float n_b_mouse_down;
+    uniform vec2 o_trn_mouse;
+
+    vec2 g( vec2 n ) { return sin(n.x*n.y*vec2(12,17)+vec2(1,2)); }
+    //vec2 g( vec2 n ) { return sin(n.x*n.y+vec2(0,1.571)); } // if you want the gradients to lay on a circle
+    float hashOld12(vec2 p)
+    {
+        // Two typical hashes...
+        return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453);
+        
+        // This one is better, but it still stretches out quite quickly...
+        // But it's really quite bad on my Mac(!)
+        //return fract(sin(dot(p, vec2(1.0,113.0)))*43758.5453123);
+    
+    }
+    float noise(vec2 p)
+    {
+        const float kF = 2.0;  // make 6 to see worms
+        
+        vec2 i = floor(p);
+        vec2 f = fract(p);
+        f = f*f*(3.0-2.0*f);
+        return mix(mix(sin(kF*dot(p,g(i+vec2(0,0)))),
+                    sin(kF*dot(p,g(i+vec2(1,0)))),f.x),
+                mix(sin(kF*dot(p,g(i+vec2(0,1)))),
+                    sin(kF*dot(p,g(i+vec2(1,1)))),f.x),f.y);
+    }
 
     void main() {
         // gl_FragCoord is the current pixel coordinate and available by default
-        
-        vec2 o_trn_pix_nor = (gl_FragCoord.xy - o_scl_canvas.xy*.5) / vec2(min(o_scl_canvas.x, o_scl_canvas.y));
+        float n_min_scl_canvas = min(o_scl_canvas.x, o_scl_canvas.y);
+        vec2 o_trn_pix_nor = (gl_FragCoord.xy - o_scl_canvas.xy*.5) / vec2(n_min_scl_canvas);
+        vec2 o_trn_mou_nor = (o_trn_mouse.xy - o_scl_canvas.xy*.5) / vec2(n_min_scl_canvas);
         vec2 o_trn_pix_nor2 = (o_trn_pix_nor+.5);
         o_trn_pix_nor2.y = 1.-o_trn_pix_nor2.y;
         float n1 = (o_trn_pix_nor.x*o_trn_pix_nor.y);
@@ -244,63 +410,27 @@ o_webgl_program = f_o_webgl_program(
 
         float n_last = o_last.r;
         float n_new = 0.0;
-        if (n_idx_s_type == 0.) {
 
-            if(n_nor_krnl > n_1 || n_nor_krnl < n_2){
-                n_new = n_last-n_nor_krnl;
-            }else{
-                n_new = n_last+n_nor_krnl;
-            }
-        }
-
-        if (n_idx_s_type == 1.) {
-            // Weighted Growth & Decay rule
-            if (n_nor_krnl > n_1) {  
-                n_new = n_last + (n_nor_krnl - n_last) * n_2; // Move toward neighborhood average  
-            } else if (n_nor_krnl < n_1) {  
-                n_new = n_last - (n_last - n_nor_krnl) * n_2; // Move away from neighborhood average  
-            } else {  
-                n_new = n_last;  
-            }
-        }
-        
-        if (n_idx_s_type == 2.) {
-            // Pattern Stabilization (Thresholded Growth)
-            if (n_nor_krnl > n_1 && n_last < 0.5) {  
-                n_new = min(n_last + n_2, 1.0); // Increase brightness  
-            } else if (n_nor_krnl < n_1 && n_last > 0.5) {  
-                n_new = max(n_last - n_2, 0.0); // Decrease brightness  
-            } else {  
-                n_new = n_last;  
-            }
-        }
-        
-        if (n_idx_s_type == 3.) {
-            // Reaction-Diffusion-Like Behavior
-            n_new = n_last + (n_nor_krnl - n_last) * n_1 - (n_last * (1.0 - n_last) * n_2);
-        }
-        
-        if (n_idx_s_type == 4.) {
-            // Noise-Driven Chaos
-            float rand_val = fract(sin(dot(gl_FragCoord.xy ,vec2(12.9898,78.233))) * 43758.5453); // GLSL random
-            if (abs(n_nor_krnl - n_last) > n_1) {
-                n_new = clamp(n_last + (rand_val * 2.0 - 1.0) * n_2, 0.0, 1.0); // Small random fluctuations
-            } else {
-                n_new = n_last;
-            }
-        }
-        
-        if (n_idx_s_type == 5.) {
-            // Conditional Cellular Flow
-            if (n_last > n_1) {  
-                n_new = mix(n_nor_krnl, n_last, n_2); // Bias toward neighborhood if above n_1  
-            } else {  
-                n_new = mix(n_last, n_nor_krnl, n_2); // Bias toward self if below n_1  
-            }
-        }
+        ${a_o_automata.map((o, n_idx)=>{
+            return `
+            if(n_idx_s_rule == ${n_idx}.){
+                ${o.s_glsl}
+            }`
+        }).join('\n')}
         
         fragColor = vec4(n_new, n_new, n_new, 1.0);
 
+        if(n_b_mouse_down == 1.0){
+            
+            vec2 odelt = o_trn_mou_nor-o_trn_pix_nor;
+            float n_dc = length(odelt);
+            float n_ds = max(abs(odelt.x), abs(odelt.y));
+            float n_d = 0.5*n_dc+0.5*n_ds;
+
+            // fragColor += smoothstep(0.1, 0.09, n_d)*noise(24.0*o_trn_pix_nor + n_ms_time*0.004); 
+            fragColor += smoothstep(0.1, 0.09, n_d)*hashOld12(24.0*o_trn_pix_nor + n_ms_time*0.004); 
+            //fragColor = vec4(n_d,n_d,n_d, 1.);
+        }
     }
     `, 
     {
@@ -432,7 +562,9 @@ let f_render_from_o_webgl_program_custom = function(
 
     o_state_ufloc.o_ufloc__n_1 = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_1');
     o_state_ufloc.o_ufloc__n_2 = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_2');
-    o_state_ufloc.o_ufloc__n_idx_s_type = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_idx_s_type');
+    o_state_ufloc.o_ufloc__n_idx_s_rule = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_idx_s_rule');
+    o_state_ufloc.o_ufloc__n_b_mouse_down = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_b_mouse_down');
+    o_state_ufloc.o_ufloc__o_trn_mouse = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'o_trn_mouse');
     // Render the cellular automata step to the offscreen framebuffer
     o_webgl_program.o_ctx.drawArrays(o_webgl_program.o_ctx.TRIANGLE_STRIP, 0, 4);
 
@@ -575,132 +707,175 @@ document.body.appendChild(
                     a_s_prop_sync: 'b_show_inputs',
                     f_a_o: async ()=>[
                         {
+                            style: "display:flex;flex-direction: row", 
                             f_a_o: ()=>[
                                 {
-                                    s_tag: "label",
-                                    innerText: "type",
-                                },
-                                {
-                                    s_tag: "select", 
-                                    a_s_prop_sync: 's_type', 
-                                    onchange: ()=>{
-                                        o_state.n_idx_s_type = o_state.a_s_type.indexOf(o_state.s_type);                                        
-                                    },
-                                    f_a_o: ()=>{
-                                        return o_state.a_s_type.map(s=>{
-                                            return {
-                                                s_tag: "option",
-                                                value: s, 
-                                                innerText: s 
+                                    style: 'flex: 1 1 auto',
+                                    f_a_o: ()=>[
+                                        {
+                                            s_tag: "label",
+                                            innerText: "type",
+                                        },
+                                        {
+                                            s_tag: "select", 
+                                            a_s_prop_sync: 's_rule', 
+                                            onchange: ()=>{
+                                                o_state.n_idx_s_rule = o_state.a_s_rule.indexOf(o_state.s_rule);                                        
+                                                o_state.o_automata = o_state.a_o_automata[o_state.n_idx_s_rule] 
+                                            },
+                                            f_a_o: ()=>{
+                                                return o_state.a_s_rule.map(s=>{
+                                                    return {
+                                                        s_tag: "option",
+                                                        value: s, 
+                                                        innerText: s 
+                                                    }
+                                                })
                                             }
-                                        })
-                                    }
+                                        },
+                                        {
+                                            f_a_o: ()=>[
+                                                {
+                                                    a_s_prop_sync: ["o_automata"],
+                                                    s_tag: 'pre', 
+                                                    class: "language-glsl", 
+                                                    style: "background: rgba(0.1, 0.1, 0.1, .9)",
+                                                    f_s_innerHTML: ()=>{
+                                                        let s = (o_state.o_automata?.s_glsl) ? o_state.o_automata?.s_glsl : '//select'
+                                                        // return o?.s_glsl;
+                                                        
+                                                        const highlightedCode = hljs.highlight(
+                                                            s,
+                                                            { language: 'glsl' }
+                                                          ).value
+                                                        return highlightedCode
+                                                    }
+                                                }
+                                            ]
+                                        }
+                                    ]
                                 },
+                                {
+                                    style: 'flex: 1 1 auto',
+                                    f_a_o: ()=>[
+                                        {
+                                            style: "display:flex;flex-direction:row",
+                                            a_s_prop_sync: 'o_automata',
+                                            f_b_render: ()=>{
+                                                let b = o_state?.o_automata?.a_s_variable?.includes?.('n_1')
+                                                return b
+                                            },
+                                            f_a_o: async ()=>[
+                                                {
+                                                    s_tag: "label",
+                                                    innerText: "n1",
+                                                },
+                                                {
+                                                    s_tag: 'input', 
+                                                    type: "number", 
+                                                    min: 0.0, 
+                                                    max: 1.0, 
+                                                    step:0.001,
+                                                    a_s_prop_sync: ['n_1']
+                                                },
+                                                {
+                                                    s_tag: "input", 
+                                                    type: "range", 
+                                                    min: 0.0, 
+                                                    max: 1.0, 
+                                                    step:0.001,
+                                                    a_s_prop_sync: ['n_1']
+                                                },
+                                            ]
+                                        },
+                                        {
+                                            style: "display:flex;flex-direction:row",
+                                            a_s_prop_sync: 'o_automata',
+                                            f_b_render: ()=>{
+                                                return o_state?.o_automata?.a_s_variable?.includes?.('n_2')
+                                            },
+                                            f_a_o: async ()=> [
+                                                {
+                                                    s_tag: "label",
+                                                    innerText: "n2",
+                                                },
+                                                {
+                                                    s_tag: 'input', 
+                                                    type: "number", 
+                                                    min: 0.0, 
+                                                    max: 1.0, 
+                                                    step:0.001,
+                                                    a_s_prop_sync: ['n_2']
+                                                },
+                                                {
+                                                    s_tag: "input", 
+                                                    type: "range", 
+                                                    min: 0.0, 
+                                                    max: 1.0, 
+                                                    step:0.001,
+                                                    a_s_prop_sync: ['n_2']
+                                                },
+                        
+                                            ]
+                                        },
+                                        {
+                                            style: "display:flex;flex-direction:row",
+                                            f_a_o: async ()=>[
+                                                {
+                                                    s_tag: "label",
+                                                    innerText: "n_fps", 
+                                                } ,
+                                                {
+                                                    s_tag: 'input', 
+                                                    type: "number", 
+                                                    min: 1.0, 
+                                                    max: 120.0,
+                                                    a_s_prop_sync: 'n_fps'
+                                                },
+                                                {
+                                                    s_tag: "input", 
+                                                    type: "range", 
+                                                    min: 1.0, 
+                                                    max: 120.0, 
+                                                    a_s_prop_sync: 'n_fps'
+                                                },
+                        
+                                            ]
+                                        },
+                                        {
+                                            style: "display:flex;flex-direction:row",
+                                            f_a_o:async ()=> [
+                                                {
+                                                    s_tag: "label",
+                                                    innerText: "n_factor_resolution", 
+                                                } ,
+                                                {
+                                                    s_tag: 'input', 
+                                                    type: "number", 
+                                                    min: 0.01, 
+                                                    max: 10.0,
+                                                    step:0.01, 
+                                                    a_s_prop_sync: 'n_factor_resolution'
+                                                },
+                                                {
+                                                    s_tag: "input", 
+                                                    type: "range", 
+                                                    min: 0.01, 
+                                                    max: 10.0,
+                                                    step:0.01, 
+                                                    a_s_prop_sync: 'n_factor_resolution', 
+                                                    oninput: ()=>{
+                                                        f_resize()
+                                                    }
+                                                },
+                                            ]
+                                        },
+                                    ]
+                                }
                             ]
-                        },
-                        {
-                            style: "display:flex;flex-direction:row",
-                            f_a_o: async ()=>[
-                                {
-                                    s_tag: "label",
-                                    innerText: "n1",
-                                },
-                                {
-                                    s_tag: 'input', 
-                                    type: "number", 
-                                    min: 0.0, 
-                                    max: 1.0, 
-                                    step:0.001,
-                                    a_s_prop_sync: ['n_1']
-                                },
-                                {
-                                    s_tag: "input", 
-                                    type: "range", 
-                                    min: 0.0, 
-                                    max: 1.0, 
-                                    step:0.001,
-                                    a_s_prop_sync: ['n_1']
-                                },
-                            ]
-                        },
-                        {
-                            style: "display:flex;flex-direction:row",
-                            f_a_o: async ()=> [
-                                {
-                                    s_tag: "label",
-                                    innerText: "n2",
-                                },
-                                {
-                                    s_tag: 'input', 
-                                    type: "number", 
-                                    min: 0.0, 
-                                    max: 1.0, 
-                                    step:0.001,
-                                    a_s_prop_sync: ['n_2']
-                                },
-                                {
-                                    s_tag: "input", 
-                                    type: "range", 
-                                    min: 0.0, 
-                                    max: 1.0, 
-                                    step:0.001,
-                                    a_s_prop_sync: ['n_2']
-                                },
-        
-                            ]
-                        },
-                        {
-                            style: "display:flex;flex-direction:row",
-                            f_a_o: async ()=>[
-                                {
-                                    s_tag: "label",
-                                    innerText: "n_fps", 
-                                } ,
-                                {
-                                    s_tag: 'input', 
-                                    type: "number", 
-                                    min: 1.0, 
-                                    max: 120.0,
-                                    a_s_prop_sync: 'n_fps'
-                                },
-                                {
-                                    s_tag: "input", 
-                                    type: "range", 
-                                    min: 1.0, 
-                                    max: 120.0, 
-                                    a_s_prop_sync: 'n_fps'
-                                },
-        
-                            ]
-                        },
-                        {
-                            style: "display:flex;flex-direction:row",
-                            f_a_o:async ()=> [
-                                {
-                                    s_tag: "label",
-                                    innerText: "n_factor_resolution", 
-                                } ,
-                                {
-                                    s_tag: 'input', 
-                                    type: "number", 
-                                    min: 0.01, 
-                                    max: 10.0,
-                                    step:0.01, 
-                                    a_s_prop_sync: 'n_factor_resolution'
-                                },
-                                {
-                                    s_tag: "input", 
-                                    type: "range", 
-                                    min: 0.01, 
-                                    max: 10.0,
-                                    step:0.01, 
-                                    a_s_prop_sync: 'n_factor_resolution', 
-                                    oninput: ()=>{
-                                        f_resize()
-                                    }
-                                },
-                            ]
-                        },
+                        }
+
+
                     ]
                 }
             ]
@@ -709,12 +884,15 @@ document.body.appendChild(
     )
 )
 
-
-
-
-
-// window.onmousemove = function(o_e){
-//     let n_nor = o_e.clientX / window.innerWidth;
-//     o_state.n_number = parseInt(n_nor*10.);
-//      console.log('n_number is set to n_nor_x_mouse * 10')
-// }
+window.onmousedown = function(){
+    o_state.n_b_mouse_down = 1
+}
+window.onmouseup = function(){
+    o_state.n_b_mouse_down = 0
+}
+window.onmousemove = function(o_e){
+    o_state.o_trn_mouse = [
+        o_e.clientX*o_state.n_factor_resolution,
+        (window.innerHeight-o_e.clientY)*o_state.n_factor_resolution
+    ];
+}
