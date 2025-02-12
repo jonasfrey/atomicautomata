@@ -14,7 +14,7 @@ import {
     f_render_from_o_webgl_program,
     f_o_proxified_and_add_listeners, 
     f_o_html_from_o_js
-} from "https://deno.land/x/handyhelpers@5.1.6/mod.js"
+} from "https://deno.land/x/handyhelpers@5.1.8/mod.js"
 
 import {
     f_s_hms__from_n_ts_ms_utc,
@@ -23,12 +23,29 @@ import {
 let a_o_shader = []
 let n_idx_a_o_shader = 0;
 let o_state_ufloc = {}
+let a_o_automata = [
+    {
+        s_name: "", 
+        s_glsl: `
+        `
+    }
+]
+let a_s_type = [
+    '0', 
+    'Weighted Growth & Decay rule', 
+    'Pattern Stabilization (Thresholded Growth)', 
+    'Reaction-Diffusion-Like Behavior',
+    'Noise-Driven Chaos',
+    'Conditional Cellular Flow'
+]
 let o_state = f_o_proxified_and_add_listeners(
     {
+        a_s_type,
+        s_type: a_s_type[0],
         b_show_inputs: true,
         n_1: 0.5, 
-        n_2: 0.2, 
-        n_fps: 1,
+        n_2: 0.005, 
+        n_fps: 30,
         n_factor_resolution: 0.2,
         o_shader: {},
         o_state_notifire: {},
@@ -145,6 +162,9 @@ f_add_css(
     //   input[type="range"] {
     //     flex: 1 1 auto; /* Allow the range input to grow and take up remaining space */
     //   }
+    hr{
+        display: block
+    }
     ${
         f_s_css_from_o_variables(
             o_variables
@@ -179,6 +199,7 @@ o_webgl_program = f_o_webgl_program(
     uniform sampler2D o_texture_1;
     uniform float n_1;
     uniform float n_2;
+    uniform float n_idx_s_type;
 
     void main() {
         // gl_FragCoord is the current pixel coordinate and available by default
@@ -219,16 +240,66 @@ o_webgl_program = f_o_webgl_program(
                 }
             }
         }
-        float n_nor = sum/n_count;
+        float n_nor_krnl = sum/n_count;
 
-        n = 0.0;
-        if(n_nor > n_1 || n_nor < n_2){
-            n = o_last.r-n_nor;
-        }else{
-            n = o_last.r+n_nor;
+        float n_last = o_last.r;
+        float n_new = 0.0;
+        if (n_idx_s_type == 0.) {
+
+            if(n_nor_krnl > n_1 || n_nor_krnl < n_2){
+                n_new = n_last-n_nor_krnl;
+            }else{
+                n_new = n_last+n_nor_krnl;
+            }
         }
 
-        fragColor = vec4(n, n, n, 1.0);
+        if (n_idx_s_type == 1.) {
+            // Weighted Growth & Decay rule
+            if (n_nor_krnl > n_1) {  
+                n_new = n_last + (n_nor_krnl - n_last) * n_2; // Move toward neighborhood average  
+            } else if (n_nor_krnl < n_1) {  
+                n_new = n_last - (n_last - n_nor_krnl) * n_2; // Move away from neighborhood average  
+            } else {  
+                n_new = n_last;  
+            }
+        }
+        
+        if (n_idx_s_type == 2.) {
+            // Pattern Stabilization (Thresholded Growth)
+            if (n_nor_krnl > n_1 && n_last < 0.5) {  
+                n_new = min(n_last + n_2, 1.0); // Increase brightness  
+            } else if (n_nor_krnl < n_1 && n_last > 0.5) {  
+                n_new = max(n_last - n_2, 0.0); // Decrease brightness  
+            } else {  
+                n_new = n_last;  
+            }
+        }
+        
+        if (n_idx_s_type == 3.) {
+            // Reaction-Diffusion-Like Behavior
+            n_new = n_last + (n_nor_krnl - n_last) * n_1 - (n_last * (1.0 - n_last) * n_2);
+        }
+        
+        if (n_idx_s_type == 4.) {
+            // Noise-Driven Chaos
+            float rand_val = fract(sin(dot(gl_FragCoord.xy ,vec2(12.9898,78.233))) * 43758.5453); // GLSL random
+            if (abs(n_nor_krnl - n_last) > n_1) {
+                n_new = clamp(n_last + (rand_val * 2.0 - 1.0) * n_2, 0.0, 1.0); // Small random fluctuations
+            } else {
+                n_new = n_last;
+            }
+        }
+        
+        if (n_idx_s_type == 5.) {
+            // Conditional Cellular Flow
+            if (n_last > n_1) {  
+                n_new = mix(n_nor_krnl, n_last, n_2); // Bias toward neighborhood if above n_1  
+            } else {  
+                n_new = mix(n_last, n_nor_krnl, n_2); // Bias toward self if below n_1  
+            }
+        }
+        
+        fragColor = vec4(n_new, n_new, n_new, 1.0);
 
     }
     `, 
@@ -361,6 +432,7 @@ let f_render_from_o_webgl_program_custom = function(
 
     o_state_ufloc.o_ufloc__n_1 = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_1');
     o_state_ufloc.o_ufloc__n_2 = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_2');
+    o_state_ufloc.o_ufloc__n_idx_s_type = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_idx_s_type');
     // Render the cellular automata step to the offscreen framebuffer
     o_webgl_program.o_ctx.drawArrays(o_webgl_program.o_ctx.TRIANGLE_STRIP, 0, 4);
 
@@ -495,12 +567,37 @@ document.body.appendChild(
                     f_s_innerText:()=>`${(o_state.b_show_inputs ? 'hide': 'show')}`,
                     onclick:()=>{
                         o_state.b_show_inputs = !o_state.b_show_inputs;
-                    }
+                    },
+                    a_s_prop_sync: 'b_show_inputs',
                 },
                 {
-                    b_render: o_state.b_show_inputs,
+                    f_b_render:()=> o_state.b_show_inputs,
+                    a_s_prop_sync: 'b_show_inputs',
                     f_a_o: async ()=>[
-
+                        {
+                            f_a_o: ()=>[
+                                {
+                                    s_tag: "label",
+                                    innerText: "type",
+                                },
+                                {
+                                    s_tag: "select", 
+                                    a_s_prop_sync: 's_type', 
+                                    onchange: ()=>{
+                                        o_state.n_idx_s_type = o_state.a_s_type.indexOf(o_state.s_type);                                        
+                                    },
+                                    f_a_o: ()=>{
+                                        return o_state.a_s_type.map(s=>{
+                                            return {
+                                                s_tag: "option",
+                                                value: s, 
+                                                innerText: s 
+                                            }
+                                        })
+                                    }
+                                },
+                            ]
+                        },
                         {
                             style: "display:flex;flex-direction:row",
                             f_a_o: async ()=>[
@@ -616,8 +713,8 @@ document.body.appendChild(
 
 
 
-window.onmousemove = function(o_e){
-    let n_nor = o_e.clientX / window.innerWidth;
-    o_state.n_number = parseInt(n_nor*10.);
-    console.log('n_number is set to n_nor_x_mouse * 10')
-}
+// window.onmousemove = function(o_e){
+//     let n_nor = o_e.clientX / window.innerWidth;
+//     o_state.n_number = parseInt(n_nor*10.);
+//      console.log('n_number is set to n_nor_x_mouse * 10')
+// }
