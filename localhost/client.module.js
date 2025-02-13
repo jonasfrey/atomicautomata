@@ -419,7 +419,7 @@ o_webgl_program = f_o_webgl_program(
         int kernel[9] = int[9](-1, 0, 1,  -1, 0, 1,  -1, 0, 1);
         
         // Sum the values of the neighboring pixels (excluding the center pixel)
-        float sum = 0.0;
+        vec3 o_sum = vec3(0.0);
         float n_count = 0.;
         for (int i = -3; i <= 3; i++) {
             for (int j = -3; j <= 3; j++) {
@@ -428,11 +428,15 @@ o_webgl_program = f_o_webgl_program(
                 if (i != 0 || j != 0) { // Exclude the center pixel
                     n_count+=1.;
                     float n2 = (neighbor.r > .5) ? 1.0 : 0.0;
-                    sum += n2; 
+                    o_sum += vec3(
+                        (neighbor.r > .5) ? 1.0 : 0.0,
+                        (neighbor.g > .5) ? 1.0 : 0.0,
+                        (neighbor.b > .5) ? 1.0 : 0.0
+                    ); 
                 }
             }
         }
-        float n_nor_krnl = sum/n_count;
+        vec3 o_nor_krnl = o_sum/n_count;
 
         float n_last = o_last.r;
         
@@ -440,12 +444,12 @@ o_webgl_program = f_o_webgl_program(
         float n_new_green = 0.0;
         float n_new_blue = 0.0;
         float n_new;
-
-        ${o_state.a_s_channel.map((s_channel, n_idx)=>{
+        float n_nor_krnl = (o_nor_krnl.r + o_nor_krnl.g + o_nor_krnl.b) / 3.;
+        ${o_state.a_s_channel.map((s_channel, n_idx_s_channel)=>{
 
             return a_o_automata.map((o, n_idx)=>{
                 return `
-
+                // n_nor_krnl = o_nor_krnl[${n_idx_s_channel}];
                 if(n_idx_s_rule_${s_channel} == ${n_idx}.){
                     n_new = 0.;
                     float n_1 = n_1_${s_channel};
@@ -816,7 +820,6 @@ document.body.appendChild(
                                                             a_s_prop_sync: [`o_automata_${s_channel}`],
                                                             f_b_render: ()=>{
                                                                 let b = o_state?.[`o_automata_${s_channel}`]?.a_s_variable?.includes?.('n_1')
-                                                                debugger
                                                                 return b
                                                             },
                                                             f_a_o: async ()=>[
