@@ -8,13 +8,16 @@ import {
 
 
 import {
+
     f_o_webgl_program,
     f_delete_o_webgl_program,
     f_resize_canvas_from_o_webgl_program,
-    f_render_from_o_webgl_program,
+    f_render_from_o_webgl_program, 
+    f_o_html_element__from_s_tag,
     f_o_proxified_and_add_listeners, 
     f_o_html_from_o_js
-} from "https://deno.land/x/handyhelpers@5.1.82/mod.js"
+} from "https://deno.land/x/handyhelpers@5.1.85/mod.js"
+
 
 import {
     f_s_hms__from_n_ts_ms_utc,
@@ -178,11 +181,11 @@ let a_s_rule = [
 ]
 let o_state = f_o_proxified_and_add_listeners(
     {
+        o_trn_mouse : [],
         a_s_channel: ['red', 'green', 'blue'],
         n_b_mouse_down_left: false, 
         n_b_mouse_down_middle: false, 
         n_b_mouse_down_right: false, 
-        o_trn_mouse: [0,0],
         a_o_automata,
         o_automata_red: a_o_automata[0],
         o_automata_green: a_o_automata[0],
@@ -660,6 +663,7 @@ let n_ms_sum = 0;
 let n_ms_count = 0;
 let f_raf = function(n_ms){
 
+
     // ------------- performance measuring: start
     let n_ms_delta = n_ms-n_ms_last;
     n_ms_sum = parseFloat(n_ms_sum) + parseFloat(n_ms_delta);
@@ -779,6 +783,7 @@ document.body.appendChild(
                                                                     o_state[`s_rule_${s_channel}`]
                                                                 );                                        
                                                                 o_state[`o_automata_${s_channel}`] = o_state.a_o_automata[o_state[`n_idx_s_rule_${s_channel}`]] 
+                                                                console.log(o_state[`o_automata_${s_channel}`] )
                                                             },
                                                             f_a_o: ()=>{
                                                                 return o_state.a_s_rule.map(s=>{
@@ -791,24 +796,26 @@ document.body.appendChild(
                                                             }
                                                         },
                                                         {
-                                                            f_a_o: ()=>[
-                                                                {
-                                                                    a_s_prop_sync: [`o_automata_${s_channel}`],
-                                                                    s_tag: 'pre', 
-                                                                    class: "language-glsl", 
-                                                                    style: "background: rgba(0.1, 0.1, 0.1, .9)",
-                                                                    f_s_innerHTML: ()=>{
-                                                                        let s = (o_state?.[`o_automata_${s_channel}`]?.s_glsl) ? o_state?.[`o_automata_${s_channel}`]?.s_glsl : '//select'
-                                                                        // return o?.s_glsl;
-                                                                        
-                                                                        const highlightedCode = hljs.highlight(
-                                                                            s,
-                                                                            { language: 'glsl' }
-                                                                          ).value
-                                                                        return highlightedCode
+                                                            a_s_prop_sync: `o_automata_${s_channel}`,
+                                                            f_a_o: ()=>{
+                                                                return [
+                                                                    {
+                                                                        s_tag: 'pre', 
+                                                                        class: "language-glsl", 
+                                                                        style: "background: rgba(0.1, 0.1, 0.1, .9)",
+                                                                        f_s_innerHTML: ()=>{
+                                                                            let s = (o_state?.[`o_automata_${s_channel}`]?.s_glsl) ? o_state?.[`o_automata_${s_channel}`]?.s_glsl : '//select'
+                                                                            // return o?.s_glsl;
+                                                                            
+                                                                            const highlightedCode = hljs.highlight(
+                                                                                s,
+                                                                                { language: 'glsl' }
+                                                                              ).value
+                                                                            return highlightedCode
+                                                                        }
                                                                     }
-                                                                }
-                                                            ]
+                                                                ]
+                                                            }
                                                         }
                                                     ]
                                                 },
