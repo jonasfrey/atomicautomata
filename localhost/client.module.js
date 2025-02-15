@@ -39,6 +39,11 @@ let a_o_automata = [
         a_s_variable: []
     },
     {
+        s_name: 'one_white', 
+        s_glsl: `n_new = 1.0;`,
+        a_s_variable: []
+    },
+    {
         s_name: '0',
         s_glsl: `
 
