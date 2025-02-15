@@ -15,8 +15,9 @@ import {
     f_render_from_o_webgl_program, 
     f_o_html_element__from_s_tag,
     f_o_proxified_and_add_listeners, 
-    f_o_html_from_o_js
-} from "https://deno.land/x/handyhelpers@5.1.85/mod.js"
+    f_o_html_from_o_js,
+    f_v_from_path_dotnotation
+} from "https://deno.land/x/handyhelpers@5.1.87/mod.js"
 
 
 import {
@@ -27,6 +28,11 @@ let a_o_shader = []
 let n_idx_a_o_shader = 0;
 let o_state_ufloc = {}
 let a_o_automata = [
+    {
+        s_name: 'n_nor_krnl', 
+        s_glsl: `n_new = n_nor_krnl;`,
+        a_s_variable: []
+    },
     {
         s_name: 'zero_black', 
         s_glsl: `n_new = 0.0;`,
@@ -179,9 +185,77 @@ let a_s_rule = [
         return o.s_name
     })
 ]
+function f_b_numeric(str) {
+    if (typeof str != "string") return false // we only process strings!  
+    return !isNaN(str) && // use type coercion to parse the _entirety_ of the string (`parseFloat` alone does not do this)...
+           !isNaN(parseFloat(str)) // ...and ensure strings of whitespace fail
+  }
+let f_try_to_update_ufloc = function(
+    s_path,
+    v_new
+){
+    let o_ufloc = o_state_ufloc[s_path];
+    if(!o_ufloc && f_b_numeric(s_path.split('.').at(-1))){
+        let s_path_array = s_path.split('.').slice(0, -1).join('.')
+        o_ufloc = o_state_ufloc[s_path_array];
+        // console.log(s_path_array)
+        v_new = f_v_from_path_dotnotation(s_path_array, o_state);
+        // console.log(v_new);
+    }
+    if(o_ufloc){
+        
+        if (typeof v_new === 'number') {
+            o_webgl_program?.o_ctx.uniform1f( 
+                o_ufloc,
+                v_new
+            );
+        }
+        if (v_new?.length == 2) {
+            o_webgl_program?.o_ctx.uniform2f( 
+                o_ufloc,
+                v_new[0],v_new[1] 
+            );
+        }
+        if (v_new?.length == 3) {
+            o_webgl_program?.o_ctx.uniform3f( 
+                o_ufloc,
+                v_new[0],v_new[1],v_new[2]
+            );
+        }
+        if (v_new?.length == 4) {
+            o_webgl_program?.o_ctx.uniform4f( 
+                o_ufloc,
+                v_new[0],v_new[1],v_new[2],v_new[3]
+            );
+        }
+        if (v_new?.length == 9) {
+            o_webgl_program?.o_ctx.uniformMatrix3fv( 
+                o_ufloc,
+                false,
+                v_new
+            );
+        }
+
+    }
+}
 let o_state = f_o_proxified_and_add_listeners(
     {
         o_trn_mouse : [],
+        o_krnl_r: [
+            1,1,1,
+            1,1,1,
+            1,1,1
+        ],
+        o_krnl_g: [
+            1,1,1,
+            1,1,1,
+            1,1,1
+        ],
+        o_krnl_b: [
+            1,1,1,
+            1,1,1,
+            1,1,1
+        ],
         a_s_channel: ['red', 'green', 'blue'],
         n_b_mouse_down_left: false, 
         n_b_mouse_down_middle: false, 
@@ -215,36 +289,7 @@ let o_state = f_o_proxified_and_add_listeners(
     ()=>{},
     (a_s_path, v_old, v_new) => {
         let s_path = a_s_path.join('.');
-        let o_ufloc = o_state_ufloc[`o_ufloc__${s_path}`];
-        
-        if(o_ufloc){
-            if (typeof v_new === 'number') {
-                o_webgl_program?.o_ctx.uniform1f( 
-                    o_ufloc,
-                    v_new
-                );
-            }
-            if (v_new?.length == 2) {
-                o_webgl_program?.o_ctx.uniform2f( 
-                    o_ufloc,
-                    v_new[0],v_new[1] 
-                );
-            }
-            if (v_new?.length == 3) {
-                o_webgl_program?.o_ctx.uniform3f( 
-                    o_ufloc,
-                    v_new[0],v_new[1],v_new[2]
-                );
-            }
-            if (v_new?.length == 4) {
-                o_webgl_program?.o_ctx.uniform4f( 
-                    o_ufloc,
-                    v_new[0],v_new[1],v_new[2],v_new[3]
-                );
-            }
-    
-        }
-
+        f_try_to_update_ufloc(s_path, v_new)
     }
 )
 globalThis.o_state = o_state
@@ -324,6 +369,17 @@ f_add_css(
     hr{
         display: block
     }
+        /* Chrome, Safari, Edge, Opera */
+    input.disable_arrows::-webkit-outer-spin-button,
+    input.disable_arrows::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+    }
+
+    /* Firefox */
+    input.disable_arrows[type=number] {
+    -moz-appearance: textfield;
+    }
     ${
         f_s_css_from_o_variables(
             o_variables
@@ -369,6 +425,9 @@ o_webgl_program = f_o_webgl_program(
     uniform float n_b_mouse_down_middle;
     uniform float n_b_mouse_down_right;
     uniform vec2 o_trn_mouse;
+    uniform mat3 o_krnl_r;
+    uniform mat3 o_krnl_g;
+    uniform mat3 o_krnl_b;
 
     vec2 g( vec2 n ) { return sin(n.x*n.y*vec2(12,17)+vec2(1,2)); }
     //vec2 g( vec2 n ) { return sin(n.x*n.y+vec2(0,1.571)); } // if you want the gradients to lay on a circle
@@ -427,14 +486,17 @@ o_webgl_program = f_o_webgl_program(
         for (int i = -3; i <= 3; i++) {
             for (int j = -3; j <= 3; j++) {
                 ivec2 neighborCoord = texelCoord + ivec2(i, j);
-                vec4 neighbor = texelFetch(o_texture_last_frame, neighborCoord, 0);
+                vec4 o_col_pixel_from_krnl = texelFetch(o_texture_last_frame, neighborCoord, 0);
                 if (i != 0 || j != 0) { // Exclude the center pixel
                     n_count+=1.;
-                    float n2 = (neighbor.r > .5) ? 1.0 : 0.0;
+                    float n2 = (o_col_pixel_from_krnl.r > .5) ? 1.0 : 0.0;
                     o_sum += vec3(
-                        (neighbor.r > .5) ? 1.0 : 0.0,
-                        (neighbor.g > .5) ? 1.0 : 0.0,
-                        (neighbor.b > .5) ? 1.0 : 0.0
+                        o_col_pixel_from_krnl.r*o_krnl_r[neighborCoord.x][neighborCoord.y],
+                        o_col_pixel_from_krnl.g*o_krnl_g[neighborCoord.x][neighborCoord.y],
+                        o_col_pixel_from_krnl.b*o_krnl_b[neighborCoord.x][neighborCoord.y]
+                        //(o_col_pixel_from_krnl.r > .5) ? 1.0 : 0.0,
+                        //(o_col_pixel_from_krnl.g > .5) ? 1.0 : 0.0,
+                        //(o_col_pixel_from_krnl.b > .5) ? 1.0 : 0.0
                     ); 
                 }
             }
@@ -497,6 +559,34 @@ o_webgl_program = f_o_webgl_program(
     },
 );
 o_webgl_program?.o_ctx.blitFramebuffer.bind(o_webgl_program?.o_ctx);
+let o_gl = o_webgl_program?.o_ctx;
+o_state_ufloc.n_1 = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_1');
+o_state_ufloc.n_2 = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_2');
+
+o_state_ufloc.n_1_red = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_1_red');
+o_state_ufloc.n_2_red = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_2_red');
+
+o_state_ufloc.n_1_green = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_1_green');
+o_state_ufloc.n_2_green = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_2_green' );
+
+o_state_ufloc.n_1_blue = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_1_blue');
+o_state_ufloc.n_2_blue = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_2_blue') ;
+
+o_state_ufloc.n_idx_s_rule_red = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_idx_s_rule_red');
+o_state_ufloc.n_idx_s_rule_green = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_idx_s_rule_green');
+o_state_ufloc.n_idx_s_rule_blue = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_idx_s_rule_blue');
+o_state_ufloc.n_b_mouse_down_left = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_b_mouse_down_left');
+o_state_ufloc.n_b_mouse_down_middle = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_b_mouse_down_middle');
+o_state_ufloc.n_b_mouse_down_right = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_b_mouse_down_right');
+o_state_ufloc.o_trn_mouse = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'o_trn_mouse');
+
+o_state_ufloc.o_krnl_r = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'o_krnl_r');
+o_state_ufloc.o_krnl_g = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'o_krnl_g');
+o_state_ufloc.o_krnl_b = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'o_krnl_b');
+
+for(let s_prop in o_state_ufloc){
+    f_try_to_update_ufloc(s_prop, o_state[s_prop])
+}
 
 document.body.appendChild(o_canvas);
 document.body.oncontextmenu = ()=>{return false}
@@ -565,7 +655,6 @@ let f_o_img = async function(s_url){
     })
 }
 let o_img_0 = await f_o_img('./download.png')
-let o_gl = o_webgl_program?.o_ctx;
 const o_texture_0 = o_gl.createTexture();
 o_gl.bindTexture(o_gl.TEXTURE_2D, o_texture_0);
 o_gl.texImage2D(o_gl.TEXTURE_2D, 0, o_gl.RGBA, o_gl.RGBA, o_gl.UNSIGNED_BYTE, o_img_0);
@@ -619,25 +708,8 @@ let f_render_from_o_webgl_program_custom = function(
     o_gl.uniform1i(o_uloc_o_texture_2, n_idx_texture);  
 
 
-    o_state_ufloc.o_ufloc__n_1 = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_1');
-    o_state_ufloc.o_ufloc__n_2 = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_2');
 
-    o_state_ufloc.o_ufloc__n_1_red = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_1_red');
-    o_state_ufloc.o_ufloc__n_2_red = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_2_red');
-
-    o_state_ufloc.o_ufloc__n_1_green = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_1_green');
-    o_state_ufloc.o_ufloc__n_2_green = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_2_green' );
-
-    o_state_ufloc.o_ufloc__n_1_blue = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_1_blue');
-    o_state_ufloc.o_ufloc__n_2_blue = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_2_blue') ;
-
-    o_state_ufloc.o_ufloc__n_idx_s_rule_red = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_idx_s_rule_red');
-    o_state_ufloc.o_ufloc__n_idx_s_rule_green = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_idx_s_rule_green');
-    o_state_ufloc.o_ufloc__n_idx_s_rule_blue = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_idx_s_rule_blue');
-    o_state_ufloc.o_ufloc__n_b_mouse_down_left = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_b_mouse_down_left');
-    o_state_ufloc.o_ufloc__n_b_mouse_down_middle = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_b_mouse_down_middle');
-    o_state_ufloc.o_ufloc__n_b_mouse_down_right = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_b_mouse_down_right');
-    o_state_ufloc.o_ufloc__o_trn_mouse = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'o_trn_mouse');
+    
     // Render the cellular automata step to the offscreen framebuffer
     o_webgl_program.o_ctx.drawArrays(o_webgl_program.o_ctx.TRIANGLE_STRIP, 0, 4);
 
@@ -772,28 +844,79 @@ document.body.appendChild(
                                                             innerText: `channel ${s_channel}`
                                                         },
                                                         {
-                                                            s_tag: "label",
-                                                            innerText: "type",
-                                                        },
-                                                        {
-                                                            s_tag: "select", 
-                                                            a_s_prop_sync: `s_rule_${s_channel}`, 
-                                                            onchange: ()=>{
-                                                                o_state[`n_idx_s_rule_${s_channel}`] = o_state.a_s_rule.indexOf(
-                                                                    o_state[`s_rule_${s_channel}`]
-                                                                );                                        
-                                                                o_state[`o_automata_${s_channel}`] = o_state.a_o_automata[o_state[`n_idx_s_rule_${s_channel}`]] 
-                                                                console.log(o_state[`o_automata_${s_channel}`] )
-                                                            },
-                                                            f_a_o: ()=>{
-                                                                return o_state.a_s_rule.map(s=>{
-                                                                    return {
-                                                                        s_tag: "option",
-                                                                        value: s, 
-                                                                        innerText: s 
+                                                            style: 'display:flex;flex-direction: row',
+                                                            f_a_o:()=>[
+                                                                {
+                                                                    style: [
+                                                                        `display:flex`, 
+                                                                        `flex-wrap:wrap`
+                                                                    ].join(';'),
+                                                                    f_a_o: ()=>{
+                                                                        return new Array(3).fill(0).map((n,n_idx_y)=>{
+                                                                            return {
+                                                                                style: 'width:100%',
+                                                                                f_a_o:()=> {
+                                                                                    return new Array(3).fill(0).map((n,n_idx_x)=>{
+                                                                                        let n_idx = n_idx_y*3 + n_idx_x;
+                                                                                        // let n_x = n % 3; 
+                                                                                        // let n_y = parseInt(n/3);
+                                                                                        return {
+                                                                                            s_tag: "input",
+                                                                                            class: "disable_arrows",
+                                                                                            type: 'number', 
+                                                                                            min: -1.0, 
+                                                                                            max: 1.0,
+                                                                                            step: 0.005, 
+                                                                                            innerText: o_state[`o_krnl_${s_channel[0]}`][n_idx],
+                                                                                            style: [
+                                                                                                'padding:0.2rem',
+                                                                                                'background: white',
+                                                                                                ' border 1px solid red',
+                                                                                                'width: 2rem',
+                                                                                                'height: 2rem',
+                                                                                                'background: #111',
+                                                                                                'color: #eee'
+                                                                                            ].join(';'),
+                                                                                            oninput: (o_e)=>{
+                                                                                                o_state[`o_krnl_${s_channel[0]}`][n_idx]
+                                                                                            },
+                                                                                            a_s_prop_sync: `o_krnl_${s_channel[0]}.${n_idx}`
+                                                                                        }
+                                                                                    })
+                                                                                }
+                                                                            }
+                                                                        })
                                                                     }
-                                                                })
-                                                            }
+                                                                },
+                                                                {
+                                                                    f_a_o: ()=>[         
+                                                                        {
+                                                                            s_tag: "label",
+                                                                            innerText: "type",
+                                                                        },
+                                                                        {
+                                                                            s_tag: "select", 
+                                                                            a_s_prop_sync: `s_rule_${s_channel}`, 
+                                                                            onchange: ()=>{
+                                                                                o_state[`n_idx_s_rule_${s_channel}`] = o_state.a_s_rule.indexOf(
+                                                                                    o_state[`s_rule_${s_channel}`]
+                                                                                );                                        
+                                                                                o_state[`o_automata_${s_channel}`] = o_state.a_o_automata[o_state[`n_idx_s_rule_${s_channel}`]] 
+                                                                                console.log(o_state[`o_automata_${s_channel}`] )
+                                                                            },
+                                                                            f_a_o: ()=>{
+                                                                                return o_state.a_s_rule.map(s=>{
+                                                                                    return {
+                                                                                        s_tag: "option",
+                                                                                        value: s, 
+                                                                                        innerText: s 
+                                                                                    }
+                                                                                })
+                                                                            }
+                                                                        },
+                                                                    ]
+                                                                }
+                                                            ]
                                                         },
                                                         {
                                                             a_s_prop_sync: `o_automata_${s_channel}`,
@@ -971,3 +1094,4 @@ window.onmousemove = function(o_e){
         (window.innerHeight-o_e.clientY)*o_state.n_factor_resolution
     ];
 }
+
