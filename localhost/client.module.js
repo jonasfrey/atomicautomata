@@ -245,6 +245,7 @@ let f_try_to_update_ufloc = function(
 }
 let o_state = f_o_proxified_and_add_listeners(
     {
+        o_info_krnl: false,
         o_trn_mouse : [],
         o_krnl_r: [
             1,1,1,
@@ -482,31 +483,38 @@ o_webgl_program = f_o_webgl_program(
     
         ivec2 texelCoord = ivec2(gl_FragCoord.xy); // Convert fragment coordinates to integer texel coordinates
     
-        // Define a 3x3 kernel
-        int kernel[9] = int[9](-1, 0, 1,  -1, 0, 1,  -1, 0, 1);
-        
+
         // Sum the values of the neighboring pixels (excluding the center pixel)
         vec3 o_sum = vec3(0.0);
         float n_count = 0.;
-        for (int i = -3; i <= 3; i++) {
-            for (int j = -3; j <= 3; j++) {
+        vec2 o_scl_krnl = vec2(3.,3.);
+        int n_scl_krnl_x_half = int(floor(o_scl_krnl.x /2.));
+        int n_scl_krnl_y_half = int(floor(o_scl_krnl.y /2.));
+        // mat3 kernel = mat3(
+        //     0.8, 0.8, 0.8,  // First column (left)
+        //     0.0, 2.0, 0.2,  // Second column (center)
+        //     0.0, 0.0, 0.0   // Third column (right)
+        // );
+        for (int i = -n_scl_krnl_x_half; i <= n_scl_krnl_x_half; i++) {
+            for (int j = -n_scl_krnl_y_half; j <= n_scl_krnl_y_half; j++) {
                 ivec2 neighborCoord = texelCoord + ivec2(i, j);
+                ivec2 on2 = ivec2(i, j)+ivec2(n_scl_krnl_x_half, n_scl_krnl_y_half);
                 vec4 o_col_pixel_from_krnl = texelFetch(o_texture_last_frame, neighborCoord, 0);
-                if (i != 0 || j != 0) { // Exclude the center pixel
+                //if (i != 0 || j != 0) { // Exclude the center pixel
                     n_count+=1.;
                     float n2 = (o_col_pixel_from_krnl.r > .5) ? 1.0 : 0.0;
                     o_sum += vec3(
-                        o_col_pixel_from_krnl.r*o_krnl_r[neighborCoord.x][neighborCoord.y],
-                        o_col_pixel_from_krnl.g*o_krnl_g[neighborCoord.x][neighborCoord.y],
-                        o_col_pixel_from_krnl.b*o_krnl_b[neighborCoord.x][neighborCoord.y]
+                        o_col_pixel_from_krnl.r*o_krnl_r[on2.x][on2.y],
+                        o_col_pixel_from_krnl.g*o_krnl_g[on2.x][on2.y],
+                        o_col_pixel_from_krnl.b*o_krnl_b[on2.x][on2.y]
                         //(o_col_pixel_from_krnl.r > .5) ? 1.0 : 0.0,
                         //(o_col_pixel_from_krnl.g > .5) ? 1.0 : 0.0,
                         //(o_col_pixel_from_krnl.b > .5) ? 1.0 : 0.0
                     ); 
-                }
+                //}
             }
         }
-        vec3 o_nor_krnl = o_sum/n_count;
+        vec3 o_nor_krnl = o_sum;///n_count;
 
         float n_last = o_last.r;
         
@@ -519,7 +527,7 @@ o_webgl_program = f_o_webgl_program(
 
             return a_o_automata.map((o, n_idx)=>{
                 return `
-                // n_nor_krnl = o_nor_krnl[${n_idx_s_channel}];
+                //n_nor_krnl = o_nor_krnl[${n_idx_s_channel}];
                 if(n_idx_s_rule_${s_channel} == ${n_idx}.){
                     n_new = 0.;
                     float n_1 = n_1_${s_channel};
@@ -817,7 +825,20 @@ globalThis.addEventListener('pointerdown', (o_e)=>{
     o_ws.send('pointerdown on client')
 })
 
+let f_update_color = function(o_el){
+    let n_nor = Math.min(parseFloat(o_el.value),1);
+    if(!isNaN(n_nor)){
 
+        let n_c = 255*n_nor;
+        o_el.style.backgroundColor = `rgba(${n_c}, ${n_c}, ${n_c}, 1.0)`;
+        o_el.style.color = 'white';
+        if(n_nor > .5){
+            o_el.style.color = 'black';
+        }
+
+    }
+}
+let o_info_krnl = {};
 document.body.appendChild(
     await f_o_html_from_o_js(
         {
@@ -875,15 +896,29 @@ document.body.appendChild(
                                                                                             innerText: o_state[`o_krnl_${s_channel[0]}`][n_idx],
                                                                                             style: [
                                                                                                 'padding:0.2rem',
-                                                                                                'background: white',
                                                                                                 ' border 1px solid red',
                                                                                                 'width: 2rem',
                                                                                                 'height: 2rem',
-                                                                                                'background: #111',
                                                                                                 'color: #eee'
                                                                                             ].join(';'),
+                                                                                            onmousedown: (o_e)=>{
+                                                                                                if(o_e.button == 2){
+                                                                                                    o_state[`o_krnl_${s_channel[0]}`][n_idx] = 1
+                                                                                                }
+                                                                                                o_info_krnl = {
+                                                                                                    o_el_target: o_e.target, 
+                                                                                                    o_krnl: o_state[`o_krnl_${s_channel[0]}`], 
+                                                                                                    n_idx: n_idx, 
+                                                                                                    n_trn_x_last: o_e.clientX, 
+                                                                                                    n_trn_y_last: o_e.clientY
+                                                                                                };
+
+                                                                                            },
+
                                                                                             oninput: (o_e)=>{
                                                                                                 o_state[`o_krnl_${s_channel[0]}`][n_idx]
+                                                                                                f_update_color(o_e.target);
+                                                                                                
                                                                                             },
                                                                                             a_s_prop_sync: `o_krnl_${s_channel[0]}.${n_idx}`
                                                                                         }
@@ -1092,11 +1127,21 @@ window.onmouseup = function(
     o_state[`n_b_mouse_down_left`] = 0
     o_state[`n_b_mouse_down_middle`] = 0
     o_state[`n_b_mouse_down_right`] = 0
+    o_info_krnl = null;
 }
 window.onmousemove = function(o_e){
     o_state.o_trn_mouse = [
         o_e.clientX*o_state.n_factor_resolution,
         (window.innerHeight-o_e.clientY)*o_state.n_factor_resolution
     ];
+    if(o_info_krnl){
+        let n_y_delta = (o_info_krnl.n_trn_y_last - o_e.clientY)/window.innerHeight;
+        // console.log(n_y_delta)
+        o_info_krnl.o_krnl[o_info_krnl.n_idx] += n_y_delta;
+        o_info_krnl.n_trn_x_last = o_e.clientX
+        o_info_krnl.n_trn_y_last = o_e.clientY
+        console.log(o_info_krnl.o_el_target)
+        f_update_color(o_info_krnl.o_el_target);
+    }
 }
 
