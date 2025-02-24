@@ -905,6 +905,9 @@ document.body.appendChild(
                                                                                                 if(o_e.button == 2){
                                                                                                     o_state[`o_krnl_${s_channel[0]}`][n_idx] = 1
                                                                                                 }
+                                                                                                if(o_e.button == 1){
+                                                                                                    o_state[`o_krnl_${s_channel[0]}`][n_idx] = (Math.random()-.5)*2.
+                                                                                                }
                                                                                                 o_info_krnl = {
                                                                                                     o_el_target: o_e.target, 
                                                                                                     o_krnl: o_state[`o_krnl_${s_channel[0]}`], 
