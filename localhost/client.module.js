@@ -29,11 +29,6 @@ let n_idx_a_o_shader = 0;
 let o_state_ufloc = {}
 let a_o_automata = [
     {
-        s_name: 'n_nor_krnl', 
-        s_glsl: `n_new = n_nor_krnl;`,
-        a_s_variable: []
-    },
-    {
         s_name: 'zero_black', 
         s_glsl: `n_new = 0.0;`,
         a_s_variable: []
@@ -41,6 +36,16 @@ let a_o_automata = [
     {
         s_name: 'one_white', 
         s_glsl: `n_new = 1.0;`,
+        a_s_variable: []
+    },
+    {
+        s_name: 'n_nor_krnl', 
+        s_glsl: `n_new = n_nor_krnl;`,
+        a_s_variable: []
+    },
+    {
+        s_name: 'abs', 
+        s_glsl: `n_new = abs(n_nor_krnl);`,
         a_s_variable: []
     },
     {
@@ -208,6 +213,12 @@ let f_try_to_update_ufloc = function(
         // console.log(v_new);
     }
     if(o_ufloc){
+        if(v_new === true){
+            v_new = 1.;
+        }
+        if(v_new === false){
+            v_new = 0.;
+        }
         
         if (typeof v_new === 'number') {
             o_webgl_program?.o_ctx.uniform1f( 
@@ -245,8 +256,12 @@ let f_try_to_update_ufloc = function(
 }
 let o_state = f_o_proxified_and_add_listeners(
     {
+        b_ctrl_down: false,
         o_info_krnl: false,
         o_trn_mouse : [],
+        n_b_normalize_krnl_r: false,
+        n_b_normalize_krnl_g: false,
+        n_b_normalize_krnl_b: false,
         o_krnl_r: [
             1,1,1,
             1,1,1,
@@ -267,14 +282,14 @@ let o_state = f_o_proxified_and_add_listeners(
         n_b_mouse_down_middle: false, 
         n_b_mouse_down_right: false, 
         a_o_automata,
-        o_automata_red: a_o_automata[0],
+        o_automata_red: a_o_automata.find(o=>o.s_name == 'n_nor_krnl'),
         o_automata_green: a_o_automata[0],
         o_automata_blue: a_o_automata[0],
         a_s_rule,
         s_rule_red: a_s_rule[0],
         s_rule_green: a_s_rule[0],
         s_rule_blue: a_s_rule[0],
-        n_idx_s_rule_red: 0,
+        n_idx_s_rule_red: a_o_automata.indexOf(a_o_automata.find(o=>o.s_name == 'n_nor_krnl')),
         n_idx_s_rule_green: 0,
         n_idx_s_rule_blue: 0,
         b_show_inputs: true,
@@ -430,6 +445,10 @@ o_webgl_program = f_o_webgl_program(
     uniform float n_b_mouse_down_left;
     uniform float n_b_mouse_down_middle;
     uniform float n_b_mouse_down_right;
+    uniform float n_b_normalize_krnl_r;
+    uniform float n_b_normalize_krnl_g;
+    uniform float n_b_normalize_krnl_b;
+
     uniform vec2 o_trn_mouse;
     uniform mat3 o_krnl_r;
     uniform mat3 o_krnl_g;
@@ -514,8 +533,18 @@ o_webgl_program = f_o_webgl_program(
                 //}
             }
         }
-        vec3 o_nor_krnl = o_sum;///n_count;
 
+        vec3 o_nor_krnl = o_sum;///n_count;
+        if(n_b_normalize_krnl_r == 1.){
+            o_nor_krnl.r = o_nor_krnl.r / n_count;
+        }
+        if(n_b_normalize_krnl_g == 1.){
+            o_nor_krnl.g = o_nor_krnl.g / n_count;
+        }
+        if(n_b_normalize_krnl_b == 1.){
+            o_nor_krnl.b = o_nor_krnl.b / n_count;
+        }
+        
         float n_last = o_last.r;
         
         float n_new_red = 0.0;
@@ -596,6 +625,10 @@ o_state_ufloc.o_trn_mouse = o_gl.getUniformLocation(o_webgl_program?.o_shader__p
 o_state_ufloc.o_krnl_r = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'o_krnl_r');
 o_state_ufloc.o_krnl_g = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'o_krnl_g');
 o_state_ufloc.o_krnl_b = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'o_krnl_b');
+
+o_state_ufloc.n_b_normalize_krnl_r = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_b_normalize_krnl_r');
+o_state_ufloc.n_b_normalize_krnl_g = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_b_normalize_krnl_g');
+o_state_ufloc.n_b_normalize_krnl_b = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_b_normalize_krnl_b');
 
 for(let s_prop in o_state_ufloc){
     f_try_to_update_ufloc(s_prop, o_state[s_prop])
@@ -870,6 +903,16 @@ document.body.appendChild(
                                                             innerText: `channel ${s_channel}`
                                                         },
                                                         {
+                                                            s_tag: 'button', 
+                                                            f_s_innerText: ()=>{
+                                                                return `${(o_state[`n_b_normalize_krnl_${s_channel[0]}`] ? '[x] normalize': '[ ] normalize')}`
+                                                            },
+                                                            onclick:()=>{
+                                                                o_state[`n_b_normalize_krnl_${s_channel[0]}`] = !o_state[`n_b_normalize_krnl_${s_channel[0]}`];
+                                                            },
+                                                            a_s_prop_sync: `n_b_normalize_krnl_${s_channel[0]}`,
+                                                        },
+                                                        {
                                                             style: 'display:flex;flex-direction: row',
                                                             f_a_o:()=>[
                                                                 {
@@ -890,8 +933,6 @@ document.body.appendChild(
                                                                                             s_tag: "input",
                                                                                             class: "disable_arrows",
                                                                                             type: 'number', 
-                                                                                            min: -1.0, 
-                                                                                            max: 1.0,
                                                                                             step: 0.005, 
                                                                                             innerText: o_state[`o_krnl_${s_channel[0]}`][n_idx],
                                                                                             style: [
@@ -901,20 +942,29 @@ document.body.appendChild(
                                                                                                 'height: 2rem',
                                                                                                 'color: #eee'
                                                                                             ].join(';'),
-                                                                                            onmousedown: (o_e)=>{
+                                                                                            onmousedown: async (o_e)=>{
                                                                                                 if(o_e.button == 2){
                                                                                                     o_state[`o_krnl_${s_channel[0]}`][n_idx] = 1
+                                                                                                    console.log(o_state[`o_krnl_${s_channel[0]}`][n_idx])
                                                                                                 }
                                                                                                 if(o_e.button == 1){
-                                                                                                    o_state[`o_krnl_${s_channel[0]}`][n_idx] = (Math.random()-.5)*2.
+                                                                                                    let n_rand = parseFloat(((Math.random()-.5)*2.).toFixed(3));
+                                                                                                    o_e.target.value = 0
+                                                                                                    console.log("n_rand")
+                                                                                                    console.log(n_rand)
+                                                                                                    o_state[`o_krnl_${s_channel[0]}`][n_idx] = n_rand
+                                                                                                    console.log('o_krnl')
+                                                                                                    console.log(o_state[`o_krnl_${s_channel[0]}`])
                                                                                                 }
-                                                                                                o_info_krnl = {
-                                                                                                    o_el_target: o_e.target, 
-                                                                                                    o_krnl: o_state[`o_krnl_${s_channel[0]}`], 
-                                                                                                    n_idx: n_idx, 
-                                                                                                    n_trn_x_last: o_e.clientX, 
-                                                                                                    n_trn_y_last: o_e.clientY
-                                                                                                };
+                                                                                                if(o_e.button == 0 && o_state.b_ctrl_down){
+                                                                                                    o_info_krnl = {
+                                                                                                        o_el_target: o_e.target, 
+                                                                                                        o_krnl: o_state[`o_krnl_${s_channel[0]}`], 
+                                                                                                        n_idx: n_idx, 
+                                                                                                        n_trn_x_last: o_e.clientX, 
+                                                                                                        n_trn_y_last: o_e.clientY
+                                                                                                    };
+                                                                                                }
 
                                                                                             },
 
@@ -945,7 +995,7 @@ document.body.appendChild(
                                                                                     o_state[`s_rule_${s_channel}`]
                                                                                 );                                        
                                                                                 o_state[`o_automata_${s_channel}`] = o_state.a_o_automata[o_state[`n_idx_s_rule_${s_channel}`]] 
-                                                                                console.log(o_state[`o_automata_${s_channel}`] )
+                                                                                //console.log(o_state[`o_automata_${s_channel}`] )
                                                                             },
                                                                             f_a_o: ()=>{
                                                                                 return o_state.a_s_rule.map(s=>{
@@ -1118,6 +1168,15 @@ document.body.appendChild(
     )
 )
 
+window.onkeydown = function(o_e){
+
+    o_state.b_ctrl_down = o_e.ctrlKey;
+}
+window.onkeyup = function(o_e){
+    if(o_e.ctrlKey){
+        o_state.b_ctrl_down = false;
+    }
+}
 window.onmousedown = function(
     o_e
 ){
@@ -1140,7 +1199,7 @@ window.onmousemove = function(o_e){
     if(o_info_krnl){
         let n_y_delta = (o_info_krnl.n_trn_y_last - o_e.clientY)/window.innerHeight;
         // console.log(n_y_delta)
-        o_info_krnl.o_krnl[o_info_krnl.n_idx] += n_y_delta;
+        o_info_krnl.o_krnl[o_info_krnl.n_idx] = parseFloat((n_y_delta+o_info_krnl.o_krnl[o_info_krnl.n_idx]).toFixed(2));
         o_info_krnl.n_trn_x_last = o_e.clientX
         o_info_krnl.n_trn_y_last = o_e.clientY
         console.log(o_info_krnl.o_el_target)
