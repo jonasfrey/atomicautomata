@@ -61,17 +61,17 @@ let a_o_automata = [
         a_s_variable: ['n_1', 'n_2'], 
     },
     {
-        s_name: 'i dont know',
+        s_name: 'n_last_plus_constant',
         s_glsl: `
 
             if(n_nor_krnl < n_1){
-                n_new = n_last += 0.05;
+                n_new = n_last + n_3;
             }
             if(n_nor_krnl > n_2){
-                n_new = n_last -= 0.05;
+                n_new = n_last - n_3;
             }
         `, 
-        a_s_variable: ['n_1', 'n_2'], 
+        a_s_variable: ['n_1', 'n_2', 'n_3'], 
     },
     {
         s_name: 'Threshold Invert',
@@ -90,6 +90,81 @@ let a_o_automata = [
             n_new = n_last * n_1 + n_nor_krnl * (1.0 - n_1);
         `,
         a_s_variable: ['n_1'],
+    },
+    {
+        s_name: "conway's Game of life", 
+        s_glsl: `
+            if (n_krnl_sum_floored_channel == 3. || n_krnl_sum_floored_channel == 11. || n_krnl_sum_floored_channel == 12.){
+                n_new = 1.;
+
+            }else{
+                n_new = 0.;
+            }
+        `,
+        o_krnl: [
+            1,1,1,
+            1,9,1,
+            1,1,1
+        ]
+    },
+    {
+        s_name: "wolframs rule 3d", 
+        s_glsl: `
+        if (
+            n_krnl_sum_floored_channel == 1.
+             || n_krnl_sum_floored_channel == 2.
+             || n_krnl_sum_floored_channel == 3.
+             || n_krnl_sum_floored_channel == 4.
+            ){
+                n_new = 1.;
+            }else{
+                n_new = 0.;
+            }
+          `,
+          o_krnl: [
+            0,0,0,
+            0,0,0,
+            1,2,4
+          ]
+    },
+    {
+        s_name: "inverse gaussian worms", 
+        s_glsl: `
+        float x = n_nor_krnl_channel;
+        n_new = -1./pow(2., (0.6*pow(x, 2.)))+1.;
+        `,
+        o_krnl: [
+            0.68,-0.9,0.68,
+            -0.9,-.66,-0.9, 
+            0.68,-.9,0.68
+        ]
+    },
+    {
+        s_name: 'waves', 
+        s_glsl: `
+        float x = n_nor_krnl_channel;
+        n_new = abs(1.2*x);
+        `, 
+        o_krnl: [
+            0.565, -0.716, 0.565,
+            -0.716,0.627,-0.716,
+            0.565, -0.716, 0.565
+        ]
+    },
+    {
+        s_name: 'waves_multichannel', 
+        s_glsl: `
+        float x = n_nor_krnl;
+        n_new = abs((1.+n_1)*x);
+        `, 
+        o_krnl: [
+            0.565, -0.716, 0.565,
+            -0.716,0.627,-0.716,
+            0.565, -0.716, 0.565
+        ], 
+        a_s_variable: ['n_1'],
+        // n_1: 0.2
+
     },
     {
         s_name: 'Edge Pulse',
@@ -295,10 +370,13 @@ let o_state = f_o_proxified_and_add_listeners(
         b_show_inputs: true,
         n_1_red: 0.5, 
         n_2_red: 0.005, 
+        n_3_red: 0.05, 
         n_1_green: 0.5, 
         n_2_green: 0.005, 
+        n_3_green: 0.005, 
         n_1_blue: 0.5, 
         n_2_blue: 0.005, 
+        n_3_blue: 0.005, 
         n_fps: 30,
         n_factor_resolution: 1.0,
         o_shader: {},
@@ -435,10 +513,13 @@ o_webgl_program = f_o_webgl_program(
     uniform sampler2D o_texture_1;
     uniform float n_1_red;
     uniform float n_2_red;
+    uniform float n_3_red;
     uniform float n_1_green;
     uniform float n_2_green;
+    uniform float n_3_green;
     uniform float n_1_blue;
     uniform float n_2_blue;
+    uniform float n_3_blue;
     uniform float n_idx_s_rule_red;
     uniform float n_idx_s_rule_green;
     uniform float n_idx_s_rule_blue;
@@ -514,27 +595,28 @@ o_webgl_program = f_o_webgl_program(
         //     0.0, 2.0, 0.2,  // Second column (center)
         //     0.0, 0.0, 0.0   // Third column (right)
         // );
+        vec3 o_krnl_sum_floored = vec3(0.);
         for (int i = -n_scl_krnl_x_half; i <= n_scl_krnl_x_half; i++) {
             for (int j = -n_scl_krnl_y_half; j <= n_scl_krnl_y_half; j++) {
                 ivec2 neighborCoord = texelCoord + ivec2(i, j);
                 ivec2 on2 = ivec2(i, j)+ivec2(n_scl_krnl_x_half, n_scl_krnl_y_half);
                 vec4 o_col_pixel_from_krnl = texelFetch(o_texture_last_frame, neighborCoord, 0);
-                //if (i != 0 || j != 0) { // Exclude the center pixel
-                    n_count+=1.;
-                    float n2 = (o_col_pixel_from_krnl.r > .5) ? 1.0 : 0.0;
-                    o_sum += vec3(
-                        o_col_pixel_from_krnl.r*o_krnl_r[on2.x][on2.y],
-                        o_col_pixel_from_krnl.g*o_krnl_g[on2.x][on2.y],
-                        o_col_pixel_from_krnl.b*o_krnl_b[on2.x][on2.y]
-                        //(o_col_pixel_from_krnl.r > .5) ? 1.0 : 0.0,
-                        //(o_col_pixel_from_krnl.g > .5) ? 1.0 : 0.0,
-                        //(o_col_pixel_from_krnl.b > .5) ? 1.0 : 0.0
-                    ); 
-                //}
+                n_count+=1.;
+                o_sum += vec3(
+                    o_col_pixel_from_krnl.r*o_krnl_r[on2.x][on2.y],
+                    o_col_pixel_from_krnl.g*o_krnl_g[on2.x][on2.y],
+                    o_col_pixel_from_krnl.b*o_krnl_b[on2.x][on2.y]
+
+                ); 
+                o_krnl_sum_floored += vec3(
+                    int(((o_col_pixel_from_krnl.r > .5) ? 1.0 : 0.0)*o_krnl_r[on2.x][on2.y]),
+                    int(((o_col_pixel_from_krnl.g > .5) ? 1.0 : 0.0)*o_krnl_g[on2.x][on2.y]),
+                    int(((o_col_pixel_from_krnl.b > .5) ? 1.0 : 0.0)*o_krnl_b[on2.x][on2.y])
+                );
             }
         }
 
-        vec3 o_nor_krnl = o_sum;///n_count;
+        vec3 o_nor_krnl = o_sum;
         if(n_b_normalize_krnl_r == 1.){
             o_nor_krnl.r = o_nor_krnl.r / n_count;
         }
@@ -552,15 +634,20 @@ o_webgl_program = f_o_webgl_program(
         float n_new_blue = 0.0;
         float n_new;
         float n_nor_krnl = (o_nor_krnl.r + o_nor_krnl.g + o_nor_krnl.b) / 3.;
+        float n_nor_krnl_channel = 0.;
+        float n_krnl_sum_floored_channel = 0.;
         ${o_state.a_s_channel.map((s_channel, n_idx_s_channel)=>{
 
             return a_o_automata.map((o, n_idx)=>{
                 return `
+                n_nor_krnl_channel = o_nor_krnl[${n_idx_s_channel}];
                 //n_nor_krnl = o_nor_krnl[${n_idx_s_channel}];
+                n_krnl_sum_floored_channel = o_krnl_sum_floored[${n_idx_s_channel}];
                 if(n_idx_s_rule_${s_channel} == ${n_idx}.){
                     n_new = 0.;
                     float n_1 = n_1_${s_channel};
                     float n_2 = n_2_${s_channel};
+                    float n_3 = n_3_${s_channel};
 
                     ${o.s_glsl}
 
@@ -583,6 +670,10 @@ o_webgl_program = f_o_webgl_program(
             float n_d = 0.5*n_dc+0.5*n_ds;
 
             fragColor += smoothstep(0.1, 0.09, n_d)*vec4(n_hash_r,n_hash_g,n_hash_b, 1.0);
+            // fragColor += smoothstep(0.001, 0.005, n_dc);
+
+            // gl_FragCoord.xy - o_scl_canvas.xy*.5) / vec2(n_min_scl_canvas);
+        // vec2 o_trn_mou_nor = (o_trn_mouse.xy
             //fragColor = vec4(n_d,n_d,n_d, 1.);
         }
         if(n_b_mouse_down_middle == 1.0){
@@ -607,12 +698,15 @@ o_state_ufloc.n_2 = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 
 
 o_state_ufloc.n_1_red = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_1_red');
 o_state_ufloc.n_2_red = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_2_red');
+o_state_ufloc.n_3_red = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_3_red');
 
 o_state_ufloc.n_1_green = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_1_green');
 o_state_ufloc.n_2_green = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_2_green' );
+o_state_ufloc.n_3_green = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_3_green' );
 
 o_state_ufloc.n_1_blue = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_1_blue');
 o_state_ufloc.n_2_blue = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_2_blue') ;
+o_state_ufloc.n_3_blue = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_3_blue') ;
 
 o_state_ufloc.n_idx_s_rule_red = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_idx_s_rule_red');
 o_state_ufloc.n_idx_s_rule_green = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_idx_s_rule_green');
@@ -995,6 +1089,14 @@ document.body.appendChild(
                                                                                     o_state[`s_rule_${s_channel}`]
                                                                                 );                                        
                                                                                 o_state[`o_automata_${s_channel}`] = o_state.a_o_automata[o_state[`n_idx_s_rule_${s_channel}`]] 
+                                                                                if(o_state[`o_automata_${s_channel}`]?.o_krnl){
+                                                                                    for(let n_idx in o_state[`o_automata_${s_channel}`]?.o_krnl){
+                                                                                        let n_idx2 = parseInt(n_idx);
+
+                                                                                        let n = o_state[`o_automata_${s_channel}`]?.o_krnl[n_idx2];
+                                                                                        o_state[`o_krnl_${s_channel[0]}`][n_idx2] = n;
+                                                                                    }
+                                                                                }
                                                                                 //console.log(o_state[`o_automata_${s_channel}`] )
                                                                             },
                                                                             f_a_o: ()=>{
@@ -1037,68 +1139,43 @@ document.body.appendChild(
                                                 },
                                                 {
                                                     style: 'flex: 1 1 auto',
-                                                    f_a_o: ()=>[
-                                                        {
-                                                            style: "display:flex;flex-direction:row",
-                                                            a_s_prop_sync: [`o_automata_${s_channel}`],
-                                                            f_b_render: ()=>{
-                                                                let b = o_state?.[`o_automata_${s_channel}`]?.a_s_variable?.includes?.('n_1')
-                                                                return b
-                                                            },
-                                                            f_a_o: async ()=>[
-                                                                {
-                                                                    s_tag: "label",
-                                                                    innerText: "n1",
+                                                    f_a_o: ()=>{
+                                                        return new Array('1', '2', '3').map(s_num=>{
+                                                            console.log(s_num)
+                                                            return {
+                                                                style: "display:flex;flex-direction:row",
+                                                                a_s_prop_sync: [`o_automata_${s_channel}`],
+                                                                f_b_render: ()=>{
+                                                                    let b = o_state?.[`o_automata_${s_channel}`]?.a_s_variable?.includes?.(`n_${s_num}`)
+                                                                    return b
                                                                 },
-                                                                {
-                                                                    s_tag: 'input', 
-                                                                    type: "number", 
-                                                                    min: 0.0, 
-                                                                    max: 1.0, 
-                                                                    step:0.001,
-                                                                    a_s_prop_sync: [`n_1_${s_channel}`]
-                                                                },
-                                                                {
-                                                                    s_tag: "input", 
-                                                                    type: "range", 
-                                                                    min: 0.0, 
-                                                                    max: 1.0, 
-                                                                    step:0.001,
-                                                                    a_s_prop_sync: [`n_1_${s_channel}`]
-                                                                },
-                                                            ]
-                                                        },
-                                                        {
-                                                            style: "display:flex;flex-direction:row",
-                                                            a_s_prop_sync: [`o_automata_${s_channel}`],
-                                                            f_b_render: ()=>{
-                                                                return o_state?.[`o_automata_${s_channel}`]?.a_s_variable?.includes?.('n_2')
-                                                            },
-                                                            f_a_o: async ()=> [
-                                                                {
-                                                                    s_tag: "label",
-                                                                    innerText: "n2",
-                                                                },
-                                                                {
-                                                                    s_tag: 'input', 
-                                                                    type: "number", 
-                                                                    min: 0.0, 
-                                                                    max: 1.0, 
-                                                                    step:0.001,
-                                                                    a_s_prop_sync: [`n_2_${s_channel}`]
-                                                                },
-                                                                {
-                                                                    s_tag: "input", 
-                                                                    type: "range", 
-                                                                    min: 0.0, 
-                                                                    max: 1.0, 
-                                                                    step:0.001,
-                                                                    a_s_prop_sync: [`n_2_${s_channel}`]
-                                                                },
-                                        
-                                                            ]
-                                                        },
-                                                    ]
+                                                                f_a_o: async ()=>[
+                                                                    {
+                                                                        s_tag: "label",
+                                                                        innerText: `n${s_num}`,
+                                                                    },
+                                                                    {
+                                                                        s_tag: 'input', 
+                                                                        type: "number", 
+                                                                        min: 0.0, 
+                                                                        max: 1.0, 
+                                                                        step:0.001,
+                                                                        a_s_prop_sync: [`n_${s_num}_${s_channel}`]
+                                                                    },
+                                                                    {
+                                                                        s_tag: "input", 
+                                                                        type: "range", 
+                                                                        min: 0.0, 
+                                                                        max: 1.0, 
+                                                                        step:0.001,
+                                                                        a_s_prop_sync: [`n_${s_num}_${s_channel}`]
+                                                                    },
+                                                                ]
+                                                            }
+                                                        })
+                                                        
+                                                   
+                                                    }
                                                 }
                                             ]
                                         }
@@ -1155,6 +1232,7 @@ document.body.appendChild(
                                         a_s_prop_sync: 'n_factor_resolution', 
                                         oninput: ()=>{
                                             f_resize()
+                                            f_render_from_o_webgl_program_custom(o_webgl_program);
                                         }
                                     },
                                 ]
@@ -1193,9 +1271,10 @@ window.onmouseup = function(
 }
 window.onmousemove = function(o_e){
     o_state.o_trn_mouse = [
-        o_e.clientX*o_state.n_factor_resolution,
-        (window.innerHeight-o_e.clientY)*o_state.n_factor_resolution
+        parseInt(o_e.clientX*o_state.n_factor_resolution),
+        parseInt((window.innerHeight-o_e.clientY)*o_state.n_factor_resolution)
     ];
+    console.log(o_state.o_trn_mouse)
     if(o_info_krnl){
         let n_y_delta = (o_info_krnl.n_trn_y_last - o_e.clientY)/window.innerHeight;
         // console.log(n_y_delta)
