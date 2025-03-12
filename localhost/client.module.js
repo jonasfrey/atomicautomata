@@ -17,7 +17,7 @@ import {
     f_o_proxified_and_add_listeners, 
     f_o_html_from_o_js,
     f_v_from_path_dotnotation
-} from "https://deno.land/x/handyhelpers@5.1.87/mod.js"
+} from "https://deno.land/x/handyhelpers@5.1.95/mod.js"
 
 
 import {
@@ -39,9 +39,8 @@ let a_o_automata = [
         a_s_variable: []
     },
     {
-        s_name: 'n_nor_krnl', 
-        s_glsl: `n_new = n_nor_krnl;`,
-        a_s_variable: []
+        s_name: 'n_nor_krnl_channel', 
+        s_glsl: `n_new = n_nor_krnl_channel;`,
     },
     {
         s_name: 'abs', 
@@ -304,52 +303,66 @@ let f_resize_o_texture_krnl = function(s_channel){
     let o_scl = o_state[`o_scl_krnl_${s_channel}`]
     let n_len = o_scl[0]*o_scl[1]*4;
     let a_n_u8_krnl_old = o_texture_data[`o_texture_krnl_${s_channel}`];
-    o_texture_data[`o_texture_krnl_${s_channel}`] = new Uint8Array(n_len); 
+    if(a_n_u8_krnl_old.length != n_len){
+        o_texture_data[`o_texture_krnl_${s_channel}`] = new Uint8Array(n_len); 
+    }
     let o_canvas = document.querySelector(`.krnl_canvas.${s_channel}`);
     for(let n = 0; n<n_len;n+=1){
         let n_trn_x = (n/4)%o_state[`o_scl_krnl_${s_channel}`][0];
         let n_trn_y = parseInt(n/4)/o_state[`o_scl_krnl_${s_channel}`][1];
-        let n_c = parseInt(Math.random()*255);
+        let n_c = 255//parseInt(Math.random()*255);
         let n_value_old = a_n_u8_krnl_old[n_trn_x*4+n_trn_y*4];
         if(n_value_old){
             n_c = n_value_old;
         }
         o_texture_data[`o_texture_krnl_${s_channel}`][n] = n_c
-        if(n%4== 0){
-            n_c = 255// alpha channel
-            if(o_canvas){
-                let o_ctx = o_canvas.getContext('2d');
-                let nr = o_texture_data[`o_texture_krnl_${s_channel}`][n-3];
-                let ng = o_texture_data[`o_texture_krnl_${s_channel}`][n-2];
-                let nb = o_texture_data[`o_texture_krnl_${s_channel}`][n-1];
-                let na = o_texture_data[`o_texture_krnl_${s_channel}`][n-0];
-                o_ctx.fillStyle = "rgba("+nr+","+ng+","+nb+","+(na)+")";
-                o_ctx.fillRect( n_trn_x, n_trn_y, 1, 1 );
-            }
-        }
     }
-    const level = 0;
-    const internalFormat = o_webgl_program?.o_ctx.RGBA;
-    const width = o_state[`o_scl_krnl_${s_channel}`][0];
-    const height = o_state[`o_scl_krnl_${s_channel}`][1];
-    const border = 0;
-    const srcFormat = o_webgl_program?.o_ctx.RGBA;
-    const srcType = o_webgl_program?.o_ctx.UNSIGNED_BYTE;
-    // let s_channel = s_path.split('_').pop();
+    // const level = 0;
+    // const internalFormat = o_webgl_program?.o_ctx.RGBA;
+    // const width = o_state[`o_scl_krnl_${s_channel}`][0];
+    // const height = o_state[`o_scl_krnl_${s_channel}`][1];
+    // const border = 0;
+    // const srcFormat = o_webgl_program?.o_ctx.RGBA;
+    // const srcType = o_webgl_program?.o_ctx.UNSIGNED_BYTE;
+    // // let s_channel = s_path.split('_').pop();
     
-    o_webgl_program?.o_ctx.texImage2D(
-        o_webgl_program?.o_ctx.TEXTURE_2D,
-        level,
-        internalFormat,
-        width,
-        height,
-        border,
-        srcFormat,
-        srcType,
-        o_texture_data[`o_texture_krnl_${s_channel}`],
-    );
+    // o_webgl_program?.o_ctx.texImage2D(
+    //     o_webgl_program?.o_ctx.TEXTURE_2D,
+    //     level,
+    //     internalFormat,
+    //     width,
+    //     height,
+    //     border,
+    //     srcFormat,
+    //     srcType,
+    //     o_texture_data[`o_texture_krnl_${s_channel}`],
+    // );
 
 }
+let f_update_canvas_with_krnl_data = function(s_channel, o_doc = document){
+    let a_n_u8_image_data = o_texture_data[`o_texture_krnl_${s_channel}`]
+    // console.log(a_n_u8_image_data)
+    globalThis.a_n_u8_image_data = a_n_u8_image_data
+    let n_scl_x = o_state[`o_scl_krnl_${s_channel}`][0];
+    let n_scl_y = o_state[`o_scl_krnl_${s_channel}`][1];
+    for(let n = 0; n<a_n_u8_image_data.length/4; n+=1){
+        a_n_u8_image_data[n*4+3] = 255
+    }
+    const o_image_data = new ImageData(
+        new Uint8ClampedArray(a_n_u8_image_data), // Convert to Uint8ClampedArray
+        n_scl_x,
+        n_scl_y
+    );
+    let o_canvas_krnl = o_krnl_canvases[`o_krnl_canvas_${s_channel}`];
+    const o_ctx2d = o_krnl_canvases[`o_krnl_canvas_ctx_${s_channel}`];
+    
+    o_canvas_krnl.width = n_scl_x;
+    o_canvas_krnl.height = n_scl_y;
+
+    o_ctx2d.putImageData(o_image_data, 0, 0);
+         
+}
+globalThis.f_update_canvas_with_krnl_data = f_update_canvas_with_krnl_data
 
 let a_s_rule = [
     ...a_o_automata.map(o=>{
@@ -373,6 +386,8 @@ let f_try_to_update_ufloc = function(
         v_new = f_v_from_path_dotnotation(s_path_array, o_state);
         // console.log(v_new);
     }
+
+    o_webgl_program.o_ctx.useProgram(o_webgl_program.o_shader__program);
 
     if(o_ufloc){
         if(v_new === true){
@@ -434,10 +449,182 @@ let f_try_to_update_ufloc = function(
     }
 }
 
+let s_shader_vertex_downsample =`attribute vec4 a_position;
+varying vec2 v_texCoord;
+
+void main() {
+    gl_Position = a_position;
+    v_texCoord = a_position.xy * 0.5 + 0.5; // Convert from clip space to texture coordinates
+}
+`
+let s_shader_fragment_downsample = `precision mediump float;
+varying vec2 v_texCoord;
+uniform sampler2D u_texture;
+uniform vec2 u_textureSize;
+
+void main() {
+    vec2 texelSize = 1.0 / u_textureSize;
+    vec4 color = vec4(0.0);
+
+    // Simple box filter for downsampling
+    for (float x = -1.0; x <= 1.0; x++) {
+        for (float y = -1.0; y <= 1.0; y++) {
+            color += texture2D(u_texture, v_texCoord + vec2(x, y) * texelSize);
+        }
+    }
+
+    gl_FragColor = color / 9.0; // Average the samples
+}`
+
+function createDisplayShaderProgram(gl) {
+    const vertexShaderSource = `
+        attribute vec4 a_position;
+        varying vec2 v_texCoord;
+
+        void main() {
+            gl_Position = a_position;
+            v_texCoord = a_position.xy * 0.5 + 0.5;
+        }
+    `;
+
+    const fragmentShaderSource = `
+        precision mediump float;
+        varying vec2 v_texCoord;
+        uniform sampler2D u_texture;
+
+        void main() {
+            gl_FragColor = texture2D(u_texture, v_texCoord);
+        }
+    `;
+
+    const vertexShader = compileShader(gl, vertexShaderSource, gl.VERTEX_SHADER);
+    const fragmentShader = compileShader(gl, fragmentShaderSource, gl.FRAGMENT_SHADER);
+
+    const program = gl.createProgram();
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        console.error('Unable to initialize the display shader program: ' + gl.getProgramInfoLog(program));
+        return null;
+    }
+
+    return program;
+}
+
+function createDownsampleShaderProgram(gl) {
+    // Vertex shader source code
+    const vertexShaderSource = `
+        attribute vec4 a_position;
+        varying vec2 v_texCoord;
+
+        void main() {
+            gl_Position = a_position;
+            v_texCoord = a_position.xy * 0.5 + 0.5; // Convert from clip space to texture coordinates
+        }
+    `;
+
+    // Fragment shader source code
+    const fragmentShaderSource = `
+        precision mediump float;
+        varying vec2 v_texCoord;
+        uniform sampler2D u_texture;
+        uniform vec2 u_textureSize; // Size of the original texture
+
+        void main() {
+            vec2 texelSize = 1.0 / u_textureSize;
+            vec4 color = vec4(0.0);
+
+            // Simple box filter for downsampling
+            for (int x = -1; x <= 1; x++) {
+                for (int y = -1; y <= 1; y++) {
+                    color += texture2D(u_texture, v_texCoord + vec2(x, y) * texelSize);
+                }
+            }
+
+            gl_FragColor = color / 9.0; // Average the samples
+        }
+    `;
+
+    // Compile the vertex shader
+    const vertexShader = compileShader(gl, vertexShaderSource, gl.VERTEX_SHADER);
+    if (!vertexShader) {
+        console.error('Failed to compile vertex shader');
+        return null;
+    }
+
+    // Compile the fragment shader
+    const fragmentShader = compileShader(gl, fragmentShaderSource, gl.FRAGMENT_SHADER);
+    if (!fragmentShader) {
+        console.error('Failed to compile fragment shader');
+        return null;
+    }
+
+    // Create the shader program
+    const downsampleShaderProgram = gl.createProgram();
+    gl.attachShader(downsampleShaderProgram, vertexShader);
+    gl.attachShader(downsampleShaderProgram, fragmentShader);
+    gl.linkProgram(downsampleShaderProgram);
+
+    // Check if the program linked successfully
+    if (!gl.getProgramParameter(downsampleShaderProgram, gl.LINK_STATUS)) {
+        console.error('Failed to link shader program: ' + gl.getProgramInfoLog(downsampleShaderProgram));
+        return null;
+    }
+
+    return downsampleShaderProgram;
+}
+
+function compileShader(gl, source, type) {
+    const shader = gl.createShader(type);
+    gl.shaderSource(shader, source);
+    gl.compileShader(shader);
+
+    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.error('An error occurred compiling the shader: ' + gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+        return null;
+    }
+
+    return shader;
+}
+function createProgram(gl, vertexShaderSource, fragmentShaderSource) {
+    const vertexShader = compileShader(gl, vertexShaderSource, gl.VERTEX_SHADER);
+    const fragmentShader = compileShader(gl, fragmentShaderSource, gl.FRAGMENT_SHADER);
+
+    const program = gl.createProgram();
+    gl.attachShader(program, vertexShader);
+    gl.attachShader(program, fragmentShader);
+    gl.linkProgram(program);
+
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        console.error('Unable to initialize the shader program: ' + gl.getProgramInfoLog(program));
+        return null;
+    }
+
+    return program;
+}
+
+
 let o_texture_data = {
-    o_texture_krnl_red : new Uint8Array(new Array(3*3*4).fill(0)),
-    o_texture_krnl_green : new Uint8Array(new Array(3*3*4).fill(0)),
-    o_texture_krnl_blue : new Uint8Array(new Array(3*3*4).fill(0))
+    o_texture_krnl_red : new Uint8Array(new Array(3*3*4).fill(0).map((n)=>{
+        return parseInt(Math.random()*255)
+    })),
+    o_texture_krnl_green : new Uint8Array(new Array(3*3*4).fill(0).map((n)=>{
+        return parseInt(Math.random()*255)
+    })),
+    o_texture_krnl_blue : new Uint8Array(new Array(3*3*4).fill(0).map((n)=>{
+        return parseInt(Math.random()*255)
+    }))
+}
+let o_krnl_canvases = {
+    o_krnl_canvas_red: null,
+    o_krnl_canvas_ctx_red: null,
+    o_krnl_canvas_green: null,
+    o_krnl_cacanvas_ctxreen: null,
+    o_krnl_canvas_blue: null,
+    o_krnl_ccanvas_ctxblue: null,
 }
 globalThis.o_texture_data = o_texture_data
 let o_media_recorder = null;
@@ -618,7 +805,7 @@ o_webgl_program = f_o_webgl_program(
     uniform vec2 o_scl_canvas;
     uniform float n_ms_time;
     uniform sampler2D o_texture_last_frame;
-
+    // uniform sampler2D o_texture_last_frame_downsampled;
     uniform sampler2D o_texture_krnl_red;
     uniform sampler2D o_texture_krnl_green;
     uniform sampler2D o_texture_krnl_blue;
@@ -672,6 +859,20 @@ o_webgl_program = f_o_webgl_program(
                     sin(kF*dot(p,g(i+vec2(1,1)))),f.x),f.y);
     }
 
+    float f_n_from_o_vec4(vec4 o_vec4){
+        // Convert the RGBA values back to bytes (range [0, 255])
+        vec4 bytes = o_vec4 * 255.0;
+
+        // Reconstruct the float32 value
+        float value = bytes.r * 256.0 * 256.0 * 256.0 +
+                    bytes.g * 256.0 * 256.0 +
+                    bytes.b * 256.0 +
+                    bytes.a;
+
+        // Normalize the value to the range [0, 1] (optional)
+        value = value / (256.0 * 256.0 * 256.0 * 256.0);
+        return value;
+    }
     void main() {
         // gl_FragCoord is the current pixel coordinate and available by default
         float n_min_scl_canvas = min(o_scl_canvas.x, o_scl_canvas.y);
@@ -712,22 +913,32 @@ o_webgl_program = f_o_webgl_program(
                 ivec2 on2 = ivec2(i, j)+ivec2(n_scl_krnl_x_half, n_scl_krnl_y_half);
                 vec4 o_col_pixel_from_krnl = texelFetch(o_texture_last_frame, neighborCoord, 0);
                 
-                vec4 o_col_factor_from_krnl_red = texelFetch(o_texture_krnl_red, on2, 0);
-                vec4 o_col_factor_from_krnl_green = texelFetch(o_texture_krnl_green, on2, 0);
-                vec4 o_col_factor_from_krnl_blue = texelFetch(o_texture_krnl_blue, on2, 0);
+                vec4 o_col_factor_from_krnl_red = (texelFetch(o_texture_krnl_red, on2, 0));
+                float n_factor_from_krnl_red = f_n_from_o_vec4(o_col_factor_from_krnl_red);
+                n_factor_from_krnl_red = (n_factor_from_krnl_red-.5)*2.;
+
+                // n_factor_from_krnl_red = o_krnl_tmp[on2.x][on2.y];
+                vec4 o_col_factor_from_krnl_green = (texelFetch(o_texture_krnl_green, on2, 0));
+                float n_factor_from_krnl_green = f_n_from_o_vec4(o_col_factor_from_krnl_green);
+                n_factor_from_krnl_green = (n_factor_from_krnl_green-.5)*2.;
+
+                vec4 o_col_factor_from_krnl_blue = (texelFetch(o_texture_krnl_blue, on2, 0));
+                float n_factor_from_krnl_blue = f_n_from_o_vec4(o_col_factor_from_krnl_blue);
+                n_factor_from_krnl_blue = (n_factor_from_krnl_blue-.5)*2.;
+
 
                 n_count+=1.;
                 
                 o_sum += vec3(
-                    o_col_pixel_from_krnl.r*o_col_factor_from_krnl_red.r,
-                    o_col_pixel_from_krnl.g*o_col_factor_from_krnl_green.r,
-                    o_col_pixel_from_krnl.b*o_col_factor_from_krnl_blue.r
+                    o_col_pixel_from_krnl.r*n_factor_from_krnl_red,
+                    o_col_pixel_from_krnl.g*n_factor_from_krnl_green,
+                    o_col_pixel_from_krnl.b*n_factor_from_krnl_blue
                 );
 
                 o_krnl_sum_floored += vec3(
-                    int(((o_col_pixel_from_krnl.r > .5) ? 1.0 : 0.0)*o_col_factor_from_krnl_red.r),
-                    int(((o_col_pixel_from_krnl.g > .5) ? 1.0 : 0.0)*o_col_factor_from_krnl_green.r),
-                    int(((o_col_pixel_from_krnl.b > .5) ? 1.0 : 0.0)*o_col_factor_from_krnl_blue.r)
+                    int(((o_col_pixel_from_krnl.r > .5) ? 1.0 : 0.0)*n_factor_from_krnl_red),
+                    int(((o_col_pixel_from_krnl.g > .5) ? 1.0 : 0.0)*n_factor_from_krnl_green),
+                    int(((o_col_pixel_from_krnl.b > .5) ? 1.0 : 0.0)*n_factor_from_krnl_blue)
                 );
             }
         }
@@ -802,17 +1013,129 @@ o_webgl_program = f_o_webgl_program(
             fragColor = vec4(0.,0.,0., 1.);
         }
 
-        vec4 o_col_factor_from_krnl_red = texelFetch(o_texture_krnl_red, ivec2(0,0), 0);
-        fragColor = vec4(o_col_factor_from_krnl_red);
-
+        //debugging stuff
+        // float nasdf = sin(length(o_trn_pix_nor)*22.+n_ms_time*0.001);
+        // fragColor = vec4(nasdf);
+        // vec4 o_col_factor_from_krnl_red = texelFetch(o_texture_krnl_red, ivec2(0,0), 0);
+        // float n_factor_from_krnl_red = f_n_from_o_vec4(o_col_factor_from_krnl_red);
+        // fragColor = vec4(vec3(n_factor_from_krnl_red),1.0);
+        // fragColor = vec4(vec3(o_scl_krnl_red.r/10.),1.);
     }
     `, 
     {
         antialias: false // blitFrameBfufer wont work without this, since something with multisampling
     },
 );
-o_webgl_program?.o_ctx.blitFramebuffer.bind(o_webgl_program?.o_ctx);
+
+
+// Create the downsampling shader program
+const o_downsample_shader_program = createDownsampleShaderProgram(o_webgl_program.o_ctx);
+const o_shader_program_display = createDisplayShaderProgram(o_webgl_program.o_ctx);
+
+// // Get the attribute location
+// const a_position = o_webgl_program.o_ctx.getAttribLocation(o_downsample_shader_program, 'a_position');
+// // Get the uniform locations
+// const u_texture = o_webgl_program.o_ctx.getUniformLocation(o_downsample_shader_program, 'u_texture');
+// const u_textureSize = o_webgl_program.o_ctx.getUniformLocation(o_downsample_shader_program, 'u_textureSize');
+
+if (!o_downsample_shader_program) {
+    console.error('Failed to create downsampling shader program.');
+}
+
 let o_gl = o_webgl_program?.o_ctx;
+
+let o_framebuffer_main1 = o_webgl_program.o_ctx.createFramebuffer();
+let o_framebuffer_main2 = o_webgl_program.o_ctx.createFramebuffer();
+let o_texture_main1 = o_webgl_program.o_ctx.createTexture();
+let o_texture_main2 = o_webgl_program.o_ctx.createTexture();
+let o_framebuffer_downsampled = o_webgl_program.o_ctx.createFramebuffer();
+let o_texture_downsampled = o_webgl_program.o_ctx.createTexture();
+let a_n_u8_last_frame = null;
+let a_n_u8_last_frame_downsampled = null;
+
+function setupFramebuffer(o_ctx, o_framebuffer, o_texture, width, height) {
+    o_ctx.bindTexture(o_ctx.TEXTURE_2D, o_texture);
+    o_ctx.texImage2D(o_ctx.TEXTURE_2D, 0, o_ctx.RGBA, width, height, 0, o_ctx.RGBA, o_ctx.UNSIGNED_BYTE, null);
+    o_ctx.texParameteri(o_ctx.TEXTURE_2D, o_ctx.TEXTURE_MIN_FILTER, o_ctx.LINEAR);
+    o_ctx.texParameteri(o_ctx.TEXTURE_2D, o_ctx.TEXTURE_MAG_FILTER, o_ctx.LINEAR);
+
+    o_ctx.bindFramebuffer(o_ctx.FRAMEBUFFER, o_framebuffer);
+    o_ctx.framebufferTexture2D(o_ctx.FRAMEBUFFER, o_ctx.COLOR_ATTACHMENT0, o_ctx.TEXTURE_2D, o_texture, 0);
+}
+
+function resizeFramebuffer(gl, framebuffer, texture, width, height) {
+    // Bind the framebuffer
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+
+    // Bind the texture and resize it
+    gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        gl.RGBA,
+        width,
+        height,
+        0,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        null
+    );
+
+    // Reattach the texture to the framebuffer
+    gl.framebufferTexture2D(
+        gl.FRAMEBUFFER,
+        gl.COLOR_ATTACHMENT0,
+        gl.TEXTURE_2D,
+        texture,
+        0
+    );
+
+    // Check if the framebuffer is complete
+    if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) {
+        console.error('Framebuffer is not complete');
+    }
+
+    // Unbind the framebuffer
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+}
+function updateViewport(gl, width, height) {
+    gl.viewport(0, 0, width, height);
+}
+function resizeDownsampledFramebuffer(gl, framebuffer, texture, width, height) {
+    // Resize the framebuffer and texture
+    resizeFramebuffer(gl, framebuffer, texture, width, height);
+    a_n_u8_last_frame_downsampled = new Uint8Array(width*height*4);
+    // Update the viewport
+    //updateViewport(gl, width, height);
+}
+
+
+let width = o_webgl_program.o_canvas.width;
+let height = o_webgl_program.o_canvas.height;
+let n_scl_x_krnl_max = Math.max(o_state.o_scl_krnl_red[0],Math.max(o_state.o_scl_krnl_green[0],o_state.o_scl_krnl_blue[0]));
+let n_scl_y_krnl_max = Math.max(o_state.o_scl_krnl_red[0],Math.max(o_state.o_scl_krnl_green[0],o_state.o_scl_krnl_blue[0]));
+
+setupFramebuffer(o_webgl_program.o_ctx, o_framebuffer_main1, o_texture_main1, width, height);
+setupFramebuffer(o_webgl_program.o_ctx, o_framebuffer_main2, o_texture_main2, width, height);
+// Initialize the framebuffer and texture
+resizeDownsampledFramebuffer(o_webgl_program.o_ctx, o_framebuffer_downsampled, o_texture_downsampled, n_scl_x_krnl_max, n_scl_y_krnl_max);
+
+
+// Create a buffer for the quad
+const quadBuffer = o_webgl_program.o_ctx.createBuffer();
+
+// Bind the buffer
+o_webgl_program.o_ctx.bindBuffer(o_webgl_program.o_ctx.ARRAY_BUFFER, quadBuffer);
+
+// Upload the vertex data
+const quadVertices = new Float32Array([
+    -1, -1, // Bottom-left
+     1, -1, // Bottom-right
+    -1,  1, // Top-left
+     1,  1  // Top-right
+]);
+o_webgl_program.o_ctx.bufferData(o_webgl_program.o_ctx.ARRAY_BUFFER, quadVertices, o_webgl_program.o_ctx.STATIC_DRAW);
+
 o_state_ufloc.n_1 = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_1');
 o_state_ufloc.n_2 = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_2');
 
@@ -835,6 +1158,11 @@ o_state_ufloc.n_b_mouse_down_left = o_gl.getUniformLocation(o_webgl_program?.o_s
 o_state_ufloc.n_b_mouse_down_middle = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_b_mouse_down_middle');
 o_state_ufloc.n_b_mouse_down_right = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_b_mouse_down_right');
 o_state_ufloc.o_trn_mouse = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'o_trn_mouse');
+
+o_state_ufloc.o_scl_krnl_red = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'o_scl_krnl_red');
+o_state_ufloc.o_scl_krnl_green = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'o_scl_krnl_green');
+o_state_ufloc.o_scl_krnl_blue = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'o_scl_krnl_blue');
+
 
 o_state_ufloc.n_b_normalize_krnl_red = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_b_normalize_krnl_red');
 o_state_ufloc.n_b_normalize_krnl_green = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'n_b_normalize_krnl_green');
@@ -886,10 +1214,21 @@ let f_resize = function(){
         o_state.n_factor_resolution*globalThis.innerWidth, 
         o_state.n_factor_resolution*globalThis.innerHeight
     )
-    f_setup_texture_and_framebuffer(a_o_texture[0], a_o_framebuffer[0]);
-    f_setup_texture_and_framebuffer(a_o_texture[1], a_o_framebuffer[1]);
+    //f_setup_texture_and_framebuffer(a_o_texture[0], a_o_framebuffer[0]);
+    //f_setup_texture_and_framebuffer(a_o_texture[1], a_o_framebuffer[1]);
     f_randomize_texture_data(a_o_texture[0]);
     f_randomize_texture_data(a_o_texture[1]);
+
+    let width = o_webgl_program.o_canvas.width;
+    let height = o_webgl_program.o_canvas.height;
+    let n_scl_x_krnl_max = Math.max(o_state.o_scl_krnl_red[0],Math.max(o_state.o_scl_krnl_green[0],o_state.o_scl_krnl_blue[0]));
+    let n_scl_y_krnl_max = Math.max(o_state.o_scl_krnl_red[0],Math.max(o_state.o_scl_krnl_green[0],o_state.o_scl_krnl_blue[0]));
+
+    setupFramebuffer(o_webgl_program.o_ctx, o_framebuffer_main1, o_texture_main1, width, height);
+    setupFramebuffer(o_webgl_program.o_ctx, o_framebuffer_main2, o_texture_main2, width, height);
+
+    resizeDownsampledFramebuffer(o_webgl_program.o_ctx, o_framebuffer_downsampled, o_texture_downsampled, n_scl_x_krnl_max, n_scl_y_krnl_max);
+
 
 }
 globalThis.addEventListener('resize', ()=>{
@@ -939,37 +1278,75 @@ o_gl.texParameteri(o_gl.TEXTURE_2D, o_gl.TEXTURE_MIN_FILTER, o_gl.LINEAR);
 o_gl.texParameteri(o_gl.TEXTURE_2D, o_gl.TEXTURE_MAG_FILTER, o_gl.LINEAR);
 o_gl.bindTexture(o_gl.TEXTURE_2D, null);  // Unbind the texture
 
+const o_texture_last_frame = o_gl.createTexture();
+o_gl.bindTexture(o_gl.TEXTURE_2D, o_texture_last_frame);
+o_gl.texImage2D(o_gl.TEXTURE_2D, 0, o_gl.RGBA, o_gl.RGBA, o_gl.UNSIGNED_BYTE, o_img_0);
+o_gl.texParameteri(o_gl.TEXTURE_2D, o_gl.TEXTURE_WRAP_S, o_gl.CLAMP_TO_EDGE);
+o_gl.texParameteri(o_gl.TEXTURE_2D, o_gl.TEXTURE_WRAP_T, o_gl.CLAMP_TO_EDGE);
+o_gl.texParameteri(o_gl.TEXTURE_2D, o_gl.TEXTURE_MIN_FILTER, o_gl.LINEAR);
+o_gl.texParameteri(o_gl.TEXTURE_2D, o_gl.TEXTURE_MAG_FILTER, o_gl.LINEAR);
+o_gl.bindTexture(o_gl.TEXTURE_2D, null);  // Unbind the texture
+
+const o_texture_last_frame_downsampled = o_gl.createTexture();
+o_gl.bindTexture(o_gl.TEXTURE_2D, o_texture_last_frame_downsampled);
+o_gl.texImage2D(o_gl.TEXTURE_2D, 0, o_gl.RGBA, o_gl.RGBA, o_gl.UNSIGNED_BYTE, o_img_0);
+o_gl.texParameteri(o_gl.TEXTURE_2D, o_gl.TEXTURE_WRAP_S, o_gl.CLAMP_TO_EDGE);
+o_gl.texParameteri(o_gl.TEXTURE_2D, o_gl.TEXTURE_WRAP_T, o_gl.CLAMP_TO_EDGE);
+o_gl.texParameteri(o_gl.TEXTURE_2D, o_gl.TEXTURE_MIN_FILTER, o_gl.LINEAR);
+o_gl.texParameteri(o_gl.TEXTURE_2D, o_gl.TEXTURE_MAG_FILTER, o_gl.LINEAR);
+o_gl.bindTexture(o_gl.TEXTURE_2D, null);  // Unbind the texture
+
+
+// Function to write a float32 value into the Uint8Array
+function writeFloat32ToTexture(data, offset, value) {
+    const floatArray = new Float32Array([value]);
+    const intArray = new Uint8Array(floatArray.buffer);
+
+    for (let i = 0; i < 4; i++) {
+        data[offset + i] = intArray[i];
+    }
+}
+
+
+let o_texture_current = o_texture_main1;
+let o_texture_previous = o_texture_main2;
 
 let f_render_from_o_webgl_program_custom = function(
     o_webgl_program
 ){
 
-    let n_idx_a_o_framebuffer_next = (n_idx_a_o_framebuffer+1)%a_o_texture.length
-    // Render to the offscreen framebuffer
-    o_webgl_program.o_ctx.bindFramebuffer(o_webgl_program.o_ctx.FRAMEBUFFER, a_o_framebuffer[n_idx_a_o_framebuffer_next]);
+    let gl = o_webgl_program.o_ctx;
 
-
-    o_webgl_program.o_ctx.bindBuffer(o_webgl_program.o_ctx.ARRAY_BUFFER, o_webgl_program.o_buffer_position);
-    o_webgl_program.o_ctx.enableVertexAttribArray(o_webgl_program.o_afloc_a_o_vec_position_vertex);
-    o_webgl_program.o_ctx.vertexAttribPointer(o_webgl_program.o_afloc_a_o_vec_position_vertex, 2, o_webgl_program.o_ctx.FLOAT, false, 0, 0);
+    if(o_texture_current == o_texture_main1){
+        gl.bindFramebuffer(gl.FRAMEBUFFER, o_framebuffer_main1);
+    }else{
+        gl.bindFramebuffer(gl.FRAMEBUFFER, o_framebuffer_main2);
+    }
     
+    gl.useProgram(o_webgl_program.o_shader__program);
 
-    let n_idx_texture = 0;
-    o_webgl_program.o_ctx.activeTexture(o_webgl_program.o_ctx.TEXTURE0+n_idx_texture);
-    o_webgl_program.o_ctx.bindTexture(o_webgl_program.o_ctx.TEXTURE_2D, a_o_texture[n_idx_a_o_framebuffer]);
-    const o_ufloc_o_texture_0 = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'o_texture_last_frame');
-    o_gl.uniform1i(o_ufloc_o_texture_0, n_idx_texture);  
-
-    n_idx_texture = 1
-    o_gl.activeTexture(o_gl.TEXTURE0+n_idx_texture);
-    o_gl.bindTexture(o_gl.TEXTURE_2D, o_texture_krnl_red);
-    o_state_ufloc.o_texture_krnl_red = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'o_texture_krnl_red');
-    o_gl.uniform1i(o_state_ufloc.o_texture_krnl_red, n_idx_texture);  
     const level = 0;
     const internalFormat = o_webgl_program?.o_ctx.RGBA;
     const border = 0;
     const srcFormat = o_webgl_program?.o_ctx.RGBA;
     const srcType = o_webgl_program?.o_ctx.UNSIGNED_BYTE;
+
+
+    let n_idx_texture = 0;
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, o_texture_previous);
+    gl.uniform1i(gl.getUniformLocation(o_shader_program_display, 'o_texture_last_frame'), n_idx_texture);
+    // const o_ufloc_o_texture_0 = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'o_texture_last_frame');
+    // o_gl.uniform1i(o_ufloc_o_texture_0, n_idx_texture);  
+    // Create a Uint8Array to store the pixel data
+    const width = o_webgl_program.o_canvas.width;
+    const height = o_webgl_program.o_canvas.height;
+    n_idx_texture = 1
+    o_gl.activeTexture(o_gl.TEXTURE0+n_idx_texture);
+    o_gl.bindTexture(o_gl.TEXTURE_2D, o_texture_krnl_red);
+    o_state_ufloc.o_texture_krnl_red = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'o_texture_krnl_red');
+    o_gl.uniform1i(o_state_ufloc.o_texture_krnl_red, n_idx_texture);  
+
     o_webgl_program?.o_ctx.texImage2D(
         o_webgl_program?.o_ctx.TEXTURE_2D,
         level,
@@ -1014,23 +1391,167 @@ let f_render_from_o_webgl_program_custom = function(
         o_texture_data[`o_texture_krnl_blue`],
     );
 
-    
-    // Render the cellular automata step to the offscreen framebuffer
-    o_webgl_program.o_ctx.drawArrays(o_webgl_program.o_ctx.TRIANGLE_STRIP, 0, 4);
+    // Render your scene
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
 
-    // Now copy the framebuffer to the canvas using blitFramebuffer (for WebGL 2.0)
-    // Use WebGL2's blitFramebuffer to efficiently copy the framebuffer
-    o_webgl_program.o_ctx.bindFramebuffer(o_webgl_program.o_ctx.READ_FRAMEBUFFER, a_o_framebuffer[n_idx_a_o_framebuffer_next]);
-    o_webgl_program.o_ctx.bindFramebuffer(o_webgl_program.o_ctx.DRAW_FRAMEBUFFER, null); // Canvas framebuffer
-    o_webgl_program.o_ctx.blitFramebuffer(
-        0, 0, o_webgl_program.o_canvas.width, o_webgl_program.o_canvas.height,
-        0, 0, o_webgl_program.o_canvas.width, o_webgl_program.o_canvas.height,
-        o_webgl_program.o_ctx.COLOR_BUFFER_BIT, o_webgl_program.o_ctx.NEAREST
+
+    //render to canvas !
+    // Unbind the framebuffer (render to the default framebuffer, which is the canvas)
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    // Clear the canvas
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    // Use the display shader program
+    gl.useProgram(o_shader_program_display);
+
+    // Bind the texture to texture unit 0
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, o_texture_current);
+    gl.uniform1i(gl.getUniformLocation(o_shader_program_display, 'u_texture'), 0);
+
+    // Draw a full-screen quad
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+    gl.enableVertexAttribArray(gl.getAttribLocation(o_shader_program_display, 'a_position'));
+    gl.vertexAttribPointer(gl.getAttribLocation(o_shader_program_display, 'a_position'), 2, gl.FLOAT, false, 0, 0);
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    a_n_u8_last_frame = new Uint8Array(width*height * 4);
+    o_webgl_program.o_ctx.readPixels(0, 0, width,height, o_webgl_program.o_ctx.RGBA, o_webgl_program.o_ctx.UNSIGNED_BYTE, a_n_u8_last_frame);
+    // console.log(a_n_u8_last_frame)
+    
+    let n_scl_x_krnl_max = Math.max(o_state.o_scl_krnl_red[0],Math.max(o_state.o_scl_krnl_green[0],o_state.o_scl_krnl_blue[0]));
+    let n_scl_y_krnl_max = Math.max(o_state.o_scl_krnl_red[0],Math.max(o_state.o_scl_krnl_green[0],o_state.o_scl_krnl_blue[0]));
+
+    resizeDownsampledFramebuffer(o_webgl_program.o_ctx, o_framebuffer_downsampled, o_texture_downsampled, n_scl_x_krnl_max, n_scl_y_krnl_max);
+
+    // Bind the downsampling framebuffer
+    gl.bindFramebuffer(gl.FRAMEBUFFER, o_framebuffer_downsampled);
+
+    // Set the viewport to the downsampled resolution
+    gl.viewport(0, 0, n_scl_x_krnl_max, n_scl_y_krnl_max);
+
+    // Use the downsampling shader program
+    gl.useProgram(o_downsample_shader_program);
+
+    // Bind the current texture to texture unit 0
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, o_texture_current);
+    gl.uniform1i(gl.getUniformLocation(o_downsample_shader_program, 'u_texture'), 0);
+
+    // Set the texture size uniform
+    gl.uniform2f(gl.getUniformLocation(o_downsample_shader_program, 'u_textureSize'), width, height);
+
+    // Bind the quad buffer
+    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+    gl.enableVertexAttribArray(gl.getAttribLocation(o_downsample_shader_program, 'a_position'));
+    gl.vertexAttribPointer(gl.getAttribLocation(o_downsample_shader_program, 'a_position'), 2, gl.FLOAT, false, 0, 0);
+
+    // Draw the quad
+    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+    // Read the downsampled pixels
+    a_n_u8_last_frame_downsampled = new Uint8Array(n_scl_x_krnl_max*n_scl_y_krnl_max * 4);
+    o_webgl_program.o_ctx.readPixels(0, 0, n_scl_x_krnl_max,n_scl_y_krnl_max, o_webgl_program.o_ctx.RGBA, o_webgl_program.o_ctx.UNSIGNED_BYTE, a_n_u8_last_frame_downsampled);
+    // console.log(a_n_u8_last_frame_downsampled)
+
+    // Swap textures for the next frame
+    let o_tmp = o_texture_previous; 
+    o_texture_previous = o_texture_current;
+    o_texture_current = o_tmp; 
+    // [o_texture_current, o_texture_previous] = [o_texture_previous, o_texture_current];
+    // // Draw the square
+
+    // Set the viewport to the downsampled resolution
+    gl.viewport(0, 0, width, height);
+    
+    const o_image_data = new ImageData(
+        new Uint8ClampedArray(a_n_u8_last_frame_downsampled), // Convert to Uint8ClampedArray
+        n_scl_x_krnl_max,
+        n_scl_y_krnl_max
     );
-    n_idx_a_o_framebuffer = n_idx_a_o_framebuffer_next
+    
+    for(let s_channel of ['red','green', 'blue']){
+
+        if(o_state[`n_b_last_frame_as_krnl_${s_channel}`] === true){
+            o_texture_data[`o_texture_krnl_${s_channel}`] = a_n_u8_last_frame_downsampled;
+            // Get the 2D canvas context
+            let o_canvas_krnl = o_krnl_canvases[`o_krnl_canvas_${s_channel}`];
+            const o_ctx2d = o_krnl_canvases[`o_krnl_canvas_ctx_${s_channel}`];
+        
+            // Set the canvas size to match the downsampled image
+            o_canvas_krnl.width = n_scl_x_krnl_max;
+            o_canvas_krnl.height = n_scl_y_krnl_max;
+        
+            // Draw the ImageData onto the canvas
+            o_ctx2d.putImageData(o_image_data, 0, 0);
+        }
+    }
+
+    
+    // o_webgl_program.o_ctx.drawArrays(o_webgl_program.o_ctx.TRIANGLE_STRIP, 0, 4);
+
+    // a_n_u8_last_frame = new Uint8Array(width * height * 4); // RGBA format
+    // // Read the pixel data from the framebuffer
+    // o_webgl_program.o_ctx.readPixels(0, 0, width, height, o_webgl_program.o_ctx.RGBA, o_webgl_program.o_ctx.UNSIGNED_BYTE, a_n_u8_last_frame);
+
+    // console.log(a_n_u8_last_frame)
+    // // downsample the o_texture_last_frame here 
+    // let n_scl_x_downsample_target = 10;
+    // let n_scl_y_downsample_target = 10;
+    // if(!a_n_u8_last_frame_downsampled){
+    //     a_n_u8_last_frame_downsampled = new Uint8Array(width*height*4);
+    // }
+
+    // o_webgl_program.o_ctx.bindFramebuffer(o_webgl_program.o_ctx.FRAMEBUFFER, null);
+    //     // Bind the downsampled framebuffer
+    // o_webgl_program.o_ctx.bindFramebuffer(o_webgl_program.o_ctx.FRAMEBUFFER, o_framebuffer_downsampled);
+
+    // o_webgl_program.o_ctx.bindTexture(o_webgl_program.o_ctx.TEXTURE_2D, o_texture_main);
+
+    // // Use the downsampling shader program
+    // o_webgl_program.o_ctx.useProgram(o_downsample_shader_program);
+
+    // // Set the texture size uniform
+    // o_webgl_program.o_ctx.uniform2f(u_textureSize, width, height);
+
+    // // Bind the original texture
+    // o_webgl_program.o_ctx.activeTexture(o_webgl_program.o_ctx.TEXTURE0);
+    // o_webgl_program.o_ctx.bindTexture(o_webgl_program.o_ctx.TEXTURE_2D, o_texture_main);
+    // o_webgl_program.o_ctx.uniform1i(u_texture, 0);
+
+    // // Bind the vertex buffer
+    // o_webgl_program.o_ctx.bindBuffer(o_webgl_program.o_ctx.ARRAY_BUFFER, o_webgl_program.o_buffer_position);
+    // o_webgl_program.o_ctx.enableVertexAttribArray(a_position);
+    // o_webgl_program.o_ctx.vertexAttribPointer(a_position, 2, o_webgl_program.o_ctx.FLOAT, false, 0, 0);
+
+    // // Draw the quad
+    // o_webgl_program.o_ctx.drawArrays(o_webgl_program.o_ctx.TRIANGLE_STRIP, 0, 4);
+
+    // // Allocate a Uint8Array for the downsampled image
+    // a_n_u8_last_frame_downsampled = new Uint8Array(n_scl_x_downsample_target * n_scl_y_downsample_target * 4); // RGBA format
+
+    // // Read the pixels from the downsampled framebuffer
+    // o_webgl_program.o_ctx.readPixels(
+    //     0, 0, 
+    //     n_scl_x_downsample_target, n_scl_y_downsample_target, 
+    //     o_webgl_program.o_ctx.RGBA, 
+    //     o_webgl_program.o_ctx.UNSIGNED_BYTE, 
+    //     a_n_u8_last_frame_downsampled
+    // );
+
+    // // Unbind the downsampled framebuffer
+    // o_webgl_program.o_ctx.bindFramebuffer(o_webgl_program.o_ctx.FRAMEBUFFER, null);
+
+    // o_webgl_program.o_ctx.useProgram(o_webgl_program.o_program);
+
+    gl.useProgram(o_webgl_program.o_shader__program);
+
+
 
 
 }
+
+
 let o_ufloc__n_ms_time = o_webgl_program?.o_ctx.getUniformLocation(o_webgl_program?.o_shader__program, 'n_ms_time');
 o_webgl_program?.o_ctx.uniform1f(o_ufloc__n_ms_time, 0.5);
 
@@ -1188,7 +1709,7 @@ document.body.appendChild(
                                                         },
                                                         {
                                                             s_tag: 'input', 
-                                                            type:'number', 
+                                                            type:'number',
                                                             min: 2, 
                                                             max: 2048, 
                                                             step: 1,
@@ -1197,18 +1718,64 @@ document.body.appendChild(
                                                                 let n_f = parseFloat(o_e.target.value)
                                                                 o_state[`o_scl_krnl_${s_channel}`][0] = n_f;
                                                                 o_state[`o_scl_krnl_${s_channel}`][1] = n_f;
+                                                                let n_scl_x_krnl_max = Math.max(o_state.o_scl_krnl_red[0],Math.max(o_state.o_scl_krnl_green[0],o_state.o_scl_krnl_blue[0]));
+                                                                let n_scl_y_krnl_max = Math.max(o_state.o_scl_krnl_red[0],Math.max(o_state.o_scl_krnl_green[0],o_state.o_scl_krnl_blue[0]));
+
+                                                                resizeDownsampledFramebuffer(o_webgl_program.o_ctx, o_framebuffer_downsampled, o_texture_downsampled, n_scl_x_krnl_max, n_scl_y_krnl_max);
+
                                                                 f_resize_o_texture_krnl(s_channel);
+                                                                f_update_canvas_with_krnl_data(s_channel);
+                                                                
                                                             }
                                                         },
                                                         {
                                                             s_tag: 'button', 
                                                             f_s_innerText: ()=>{
-                                                                return `${(o_state[`n_b_normalize_krnl_${s_channel}`] ? '[x]': '[ ]')} use last frame as krnl`
+                                                                return `${(o_state[`n_b_last_frame_as_krnl_${s_channel}`] ? '[x]': '[ ]')} use last frame as krnl`
                                                             },
                                                             onclick:()=>{
-                                                                o_state[`n_b_normalize_krnl_${s_channel}`] = !o_state[`n_b_normalize_krnl_${s_channel}`];
+                                                                o_state[`n_b_last_frame_as_krnl_${s_channel}`] = !o_state[`n_b_last_frame_as_krnl_${s_channel}`];
                                                             },
-                                                            a_s_prop_sync: `n_b_normalize_krnl_${s_channel}`,
+                                                            a_s_prop_sync: `n_b_last_frame_as_krnl_${s_channel}`,
+                                                        },
+                                                        {
+                                                            s_tag: 'button', 
+                                                            innerText: `randomize`,
+                                                            onclick:()=>{
+                                                                let a_n_u8 = o_texture_data[`o_texture_krnl_${s_channel}`];
+                                                                let n2 = 0;
+                                                                for(let n = 0; n< a_n_u8.length/4; n+=1){
+                                                                    
+                                                                    n2 = Math.random();
+                                                                    // Fill random float32 values
+                                                                    writeFloat32ToTexture(a_n_u8, n * 4, n2);
+                                                                }
+                                                                f_update_canvas_with_krnl_data(s_channel)
+                                                            },
+                                                        },
+                                                        {
+                                                            s_tag: 'button', 
+                                                            innerText: `1`,
+                                                            onclick:()=>{
+                                                                let a_n_u8 = o_texture_data[`o_texture_krnl_${s_channel}`];
+                                                                let n2 = 0;
+                                                                for(let n = 0; n< a_n_u8.length; n+=1){
+                                                                    o_texture_data[`o_texture_krnl_${s_channel}`][n] = 255;
+                                                                }
+                                                                f_update_canvas_with_krnl_data(s_channel)
+                                                            },
+                                                        },
+                                                        {
+                                                            s_tag: 'button', 
+                                                            innerText: `0`,
+                                                            onclick:()=>{
+                                                                let a_n_u8 = o_texture_data[`o_texture_krnl_${s_channel}`];
+                                                                let n2 = 0;
+                                                                for(let n = 0; n< a_n_u8.length; n+=1){
+                                                                    o_texture_data[`o_texture_krnl_${s_channel}`][n] = 0;
+                                                                }
+                                                                f_update_canvas_with_krnl_data(s_channel)
+                                                            },
                                                         },
                                                         {
                                                             style: 'display:flex;flex-direction: row',
@@ -1239,16 +1806,33 @@ document.body.appendChild(
                                                                                 let n_rand_r = parseInt(Math.random()*255);
                                                                                 let n_rand_g = parseInt(Math.random()*255);
                                                                                 let n_rand_b = parseInt(Math.random()*255);
-                                                                                o_ctx.fillStyle = "rgba("+n_rand_r+","+n_rand_g+","+n_rand_b+","+(255)+")";
+                                                                                let n_col = 255;
+                                                                                if(o_e.button == 0){
+                                                                                    n_col = 255
+                                                                                }
+                                                                                if(o_e.button == 1){
+                                                                                    n_col = n_rand_r;
+                                                                                }
+                                                                                if(o_e.button == 2){
+                                                                                    n_col = 0;
+                                                                                }
+                                                                                o_ctx.fillStyle = "rgba("+n_col+","+n_col+","+n_col+","+(255)+")";
                                                                                 o_ctx.fillRect( n_trn_x, n_trn_y, 1, 1 );
-                                                                                o_texture_data[`o_texture_krnl_${s_channel}`][n_idx_rgba*4+0] = n_rand_r;
-                                                                                o_texture_data[`o_texture_krnl_${s_channel}`][n_idx_rgba*4+1] = n_rand_g;
-                                                                                o_texture_data[`o_texture_krnl_${s_channel}`][n_idx_rgba*4+2] = n_rand_b;
+                                                                                o_texture_data[`o_texture_krnl_${s_channel}`][n_idx_rgba*4+0] = n_col;
+                                                                                o_texture_data[`o_texture_krnl_${s_channel}`][n_idx_rgba*4+1] = n_col;
+                                                                                o_texture_data[`o_texture_krnl_${s_channel}`][n_idx_rgba*4+2] = n_col;
                                                                                 o_texture_data[`o_texture_krnl_${s_channel}`][n_idx_rgba*4+3] = 255;
                                                                             }
                                                                         }]
                                                                     },
-                                                                    a_s_prop_sync: `o_scl_krnl_${s_channel}`
+                                                                    f_after_render: (o_e)=>{
+                                                                        // console.log(o_e)
+                                                                        o_krnl_canvases[`o_krnl_canvas_${s_channel}`] = o_e.querySelector('canvas');
+                                                                        console.log(o_krnl_canvases)
+                                                                        o_krnl_canvases[`o_krnl_canvas_ctx_${s_channel}`] = o_krnl_canvases[`o_krnl_canvas_${s_channel}`].getContext('2d');
+                                                                        f_update_canvas_with_krnl_data(s_channel, o_e)
+                                                                    },
+                                                                    // a_s_prop_sync: `o_scl_krnl_${s_channel}`
                                                                 },
                                                                 {
                                                                     f_a_o: ()=>[         
@@ -1267,12 +1851,25 @@ document.body.appendChild(
                                                                                 o_state[`o_automata_${s_channel}`] = o_state.a_o_automata[o_state[`n_idx_s_rule_${s_channel}`]] 
                                                                                 let o_automata = o_state[`o_automata_${s_channel}`];
                                                                                 if(o_automata?.o_krnl){
+                                                                                    let n_scl_x = Math.sqrt(o_automata?.o_krnl.length);
+                                                                                    let n_scl_y = n_scl_x;
+                                                                                    o_state[`o_scl_krnl_${s_channel}`][0] = n_scl_x;
+                                                                                    o_state[`o_scl_krnl_${s_channel}`][1] = n_scl_y;
+                                                                                    let n_scl_x_krnl_max = Math.max(o_state.o_scl_krnl_red[0],Math.max(o_state.o_scl_krnl_green[0],o_state.o_scl_krnl_blue[0]));
+                                                                                    let n_scl_y_krnl_max = Math.max(o_state.o_scl_krnl_red[0],Math.max(o_state.o_scl_krnl_green[0],o_state.o_scl_krnl_blue[0]));
+                                                                                    resizeDownsampledFramebuffer(o_webgl_program.o_ctx, o_framebuffer_downsampled, o_texture_downsampled, n_scl_x_krnl_max, n_scl_y_krnl_max);
+                                                                                    f_resize_o_texture_krnl(s_channel);
                                                                                     for(let n_idx in o_automata?.o_krnl){
                                                                                         let n_idx2 = parseInt(n_idx);
 
-                                                                                        let n = o_automata?.o_krnl[n_idx2];
-                                                                                        o_state[`o_krnl_${s_channel}`][n_idx2] = n;
+                                                                                        let n_nnor = o_automata?.o_krnl[n_idx2];
+                                                                                        let n_u8 = ((n_nnor+1)/2)*255
+                                                                                        o_texture_data[`o_texture_krnl_${s_channel}`][n_idx2*4+0] = n_u8;
+                                                                                        o_texture_data[`o_texture_krnl_${s_channel}`][n_idx2*4+1] = n_u8;
+                                                                                        o_texture_data[`o_texture_krnl_${s_channel}`][n_idx2*4+2] = n_u8;
+                                                                                        o_texture_data[`o_texture_krnl_${s_channel}`][n_idx2*4+3] = n_u8;
                                                                                     }
+                                                                                    f_update_canvas_with_krnl_data(s_channel);
                                                                                 }
                                                                                 for(let s_prop in o_automata){
                                                                                     let s_prop2 = `${s_prop}_${s_channel}`
@@ -1333,7 +1930,7 @@ document.body.appendChild(
                                                                 style: "display:flex;flex-direction:row",
                                                                 a_s_prop_sync: [`o_automata_${s_channel}`],
                                                                 f_b_render: ()=>{
-                                                                    let n = o_state?.[`o_automata_${s_channel}`][`n_${s_num}`];
+                                                                    let n = o_state?.[`o_automata_${s_channel}`]?.[`n_${s_num}`];
                                                                     return n != undefined
                                                                 },
                                                                 f_a_o: async ()=>[
@@ -1467,7 +2064,7 @@ window.onmousemove = function(o_e){
         o_info_krnl.o_krnl[o_info_krnl.n_idx] = parseFloat((n_y_delta+o_info_krnl.o_krnl[o_info_krnl.n_idx]).toFixed(2));
         o_info_krnl.n_trn_x_last = o_e.clientX
         o_info_krnl.n_trn_y_last = o_e.clientY
-        console.log(o_info_krnl.o_el_target)
+        // console.log(o_info_krnl.o_el_target)
         f_update_color(o_info_krnl.o_el_target);
     }
 }
