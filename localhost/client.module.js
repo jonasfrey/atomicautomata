@@ -144,6 +144,19 @@ let a_o_automata = [
         n_1: 0.6
     },
     {
+        s_name: "inverse gaussian worms - multichannel", 
+        s_glsl: `
+        float x = n_nor_krnl;
+        n_new = -1./pow(2., (n_1*pow(x, 2.)))+1.;
+        `,
+        o_krnl: [
+            0.68,-0.9,0.68,
+            -0.9,-.66,-0.9, 
+            0.68,-.9,0.68
+        ], 
+        n_1: 0.6
+    },
+    {
         s_name: 'waves', 
         s_glsl: `
         float x = n_nor_krnl_channel;
@@ -493,7 +506,8 @@ function createDisplayShaderProgram(gl) {
         uniform sampler2D u_texture;
 
         void main() {
-            gl_FragColor = texture2D(u_texture, v_texCoord);
+            vec4 o_col = texture2D(u_texture, v_texCoord);
+            gl_FragColor = o_col;
         }
     `;
 
@@ -526,25 +540,52 @@ function createDownsampleShaderProgram(gl) {
     `;
 
     // Fragment shader source code
-    const fragmentShaderSource = `
-        precision mediump float;
-        varying vec2 v_texCoord;
-        uniform sampler2D u_texture;
-        uniform vec2 u_textureSize; // Size of the original texture
-
-        void main() {
-            vec2 texelSize = 1.0 / u_textureSize;
-            vec4 color = vec4(0.0);
-
-            // Simple box filter for downsampling
-            for (int x = -1; x <= 1; x++) {
-                for (int y = -1; y <= 1; y++) {
-                    color += texture2D(u_texture, v_texCoord + vec2(x, y) * texelSize);
-                }
-            }
-
-            gl_FragColor = color / 9.0; // Average the samples
+    const fragmentShaderSource = `precision mediump float;
+    varying vec2 v_texCoord;
+    uniform sampler2D u_texture;
+    uniform vec2 u_textureSize; // Size of the original texture
+    
+    uniform float n_b_invert;
+    uniform float n_b_mirror_vertical;
+    uniform float n_b_mirror_horizontal;
+    uniform float n_b_mirror_diagonal;
+    
+    void main() {
+        vec2 texelSize = 1.0 / u_textureSize;
+        vec2 modifiedTexCoord = v_texCoord;
+    
+        // Apply reflection/mirroring based on the boolean flags
+        if (n_b_mirror_vertical == 1.0) {
+            // Reflect on y-axis (vertical symmetry)
+            modifiedTexCoord.x = abs(modifiedTexCoord.x - 0.5) * 2.0;
         }
+        if (n_b_mirror_horizontal == 1.0) {
+            // Reflect on x-axis (horizontal symmetry)
+            modifiedTexCoord.y = abs(modifiedTexCoord.y - 0.5) * 2.0;
+        }
+        if (n_b_mirror_diagonal == 1.0) {
+            // Mirror on diagonal axis (swap and reflect)
+            modifiedTexCoord.xy = abs(modifiedTexCoord.yx - 0.5) * 2.0;
+        }
+        vec4 color = vec4(0.0);
+        color = texture2D(u_texture, modifiedTexCoord  * texelSize);
+    
+        // Simple box filter for downsampling
+        // for (int x = -1; x <= 1; x++) {
+        //     for (int y = -1; y <= 1; y++) {
+        //         color += texture2D(u_texture, modifiedTexCoord + vec2(x, y) * texelSize);
+        //     }
+        // }
+    
+        // vec4 o_col = color / 9.0;
+        vec4 o_col = color;
+    
+        if (n_b_invert == 1.0) {
+            o_col.rgb = 1.0 - o_col.rgb; // Invert colors
+        }
+    
+        gl_FragColor = o_col; // Output the final color
+    }
     `;
 
     // Compile the vertex shader
@@ -638,6 +679,18 @@ let o_state = f_o_proxified_and_add_listeners(
         n_b_last_frame_as_krnl_red: false,
         n_b_last_frame_as_krnl_green: false,
         n_b_last_frame_as_krnl_blue: false,
+        n_b_invert_krnl_red: false,
+        n_b_invert_krnl_green: false,
+        n_b_invert_krnl_blue: false,
+        n_b_mirror_vertical_red: false,
+        n_b_mirror_vertical_green: false,
+        n_b_mirror_vertical_blue: false,
+        n_b_mirror_horizontal_red: false,
+        n_b_mirror_horizontal_green: false,
+        n_b_mirror_horizontal_blue: false,
+        n_b_mirror_diagonal_red: false,
+        n_b_mirror_diagonal_green: false,
+        n_b_mirror_diagonal_blue: false,
         o_scl_krnl_red: [3,3],
         o_scl_krnl_green:[3,3],
         o_scl_krnl_blue:[3,3],
@@ -1048,8 +1101,21 @@ let o_framebuffer_main1 = o_webgl_program.o_ctx.createFramebuffer();
 let o_framebuffer_main2 = o_webgl_program.o_ctx.createFramebuffer();
 let o_texture_main1 = o_webgl_program.o_ctx.createTexture();
 let o_texture_main2 = o_webgl_program.o_ctx.createTexture();
+
+let o_framebufferinfo = {
+    o_framebuffer_downsampled_red: o_webgl_program.o_ctx.createFramebuffer(),
+    o_texture_downsampled_red: o_webgl_program.o_ctx.createTexture(),
+    a_n_u8_last_frame_downsampled_red: null,
+    o_framebuffer_downsampled_green: o_webgl_program.o_ctx.createFramebuffer(),
+    o_texture_downsampled_green: o_webgl_program.o_ctx.createTexture(),
+    a_n_u8_last_frame_downsampled_green: null,
+    o_framebuffer_downsampled_blue: o_webgl_program.o_ctx.createFramebuffer(),
+    o_texture_downsampled_blue: o_webgl_program.o_ctx.createTexture(),
+    a_n_u8_last_frame_downsampled_blue: null,
+}
 let o_framebuffer_downsampled = o_webgl_program.o_ctx.createFramebuffer();
 let o_texture_downsampled = o_webgl_program.o_ctx.createTexture();
+
 let a_n_u8_last_frame = null;
 let a_n_u8_last_frame_downsampled = null;
 
@@ -1112,13 +1178,21 @@ function resizeDownsampledFramebuffer(gl, framebuffer, texture, width, height) {
 
 let width = o_webgl_program.o_canvas.width;
 let height = o_webgl_program.o_canvas.height;
-let n_scl_x_krnl_max = Math.max(o_state.o_scl_krnl_red[0],Math.max(o_state.o_scl_krnl_green[0],o_state.o_scl_krnl_blue[0]));
-let n_scl_y_krnl_max = Math.max(o_state.o_scl_krnl_red[0],Math.max(o_state.o_scl_krnl_green[0],o_state.o_scl_krnl_blue[0]));
 
 setupFramebuffer(o_webgl_program.o_ctx, o_framebuffer_main1, o_texture_main1, width, height);
 setupFramebuffer(o_webgl_program.o_ctx, o_framebuffer_main2, o_texture_main2, width, height);
 // Initialize the framebuffer and texture
-resizeDownsampledFramebuffer(o_webgl_program.o_ctx, o_framebuffer_downsampled, o_texture_downsampled, n_scl_x_krnl_max, n_scl_y_krnl_max);
+
+let a_s_channel = ['red', 'green', 'blue'];
+for(let s_channel of a_s_channel){
+    resizeDownsampledFramebuffer(
+        o_webgl_program.o_ctx,
+        o_framebufferinfo[`o_framebuffer_downsampled_${s_channel}`],
+        o_framebufferinfo[`o_texture_downsampled_${s_channel}`],
+        o_state[`o_scl_krnl_${s_channel}`][0],
+        o_state[`o_scl_krnl_${s_channel}`][1]
+    );
+}
 
 
 // Create a buffer for the quad
@@ -1249,9 +1323,13 @@ let f_o_img = async function(s_url){
         o.src = s_url;
     })
 }
+let o_texture_krnl = {
+    o_texture_krnl_red : o_gl.createTexture(),
+    o_texture_krnl_green : o_gl.createTexture(),
+    o_texture_krnl_blue : o_gl.createTexture(),
+}
 let o_img_0 = await f_o_img('./download.png')
-const o_texture_krnl_red = o_gl.createTexture();
-o_gl.bindTexture(o_gl.TEXTURE_2D, o_texture_krnl_red);
+o_gl.bindTexture(o_gl.TEXTURE_2D, o_texture_krnl.o_texture_krnl_red);
 o_gl.texImage2D(o_gl.TEXTURE_2D, 0, o_gl.RGBA, o_gl.RGBA, o_gl.UNSIGNED_BYTE, o_img_0);
 o_gl.texParameteri(o_gl.TEXTURE_2D, o_gl.TEXTURE_WRAP_S, o_gl.CLAMP_TO_EDGE);
 o_gl.texParameteri(o_gl.TEXTURE_2D, o_gl.TEXTURE_WRAP_T, o_gl.CLAMP_TO_EDGE);
@@ -1259,8 +1337,7 @@ o_gl.texParameteri(o_gl.TEXTURE_2D, o_gl.TEXTURE_MIN_FILTER, o_gl.LINEAR);
 o_gl.texParameteri(o_gl.TEXTURE_2D, o_gl.TEXTURE_MAG_FILTER, o_gl.LINEAR);
 o_gl.bindTexture(o_gl.TEXTURE_2D, null);  // Unbind the texture
 
-const o_texture_krnl_green = o_gl.createTexture();
-o_gl.bindTexture(o_gl.TEXTURE_2D, o_texture_krnl_green);
+o_gl.bindTexture(o_gl.TEXTURE_2D, o_texture_krnl.o_texture_krnl_green);
 o_gl.texImage2D(o_gl.TEXTURE_2D, 0, o_gl.RGBA, o_gl.RGBA, o_gl.UNSIGNED_BYTE, o_img_0);
 o_gl.texParameteri(o_gl.TEXTURE_2D, o_gl.TEXTURE_WRAP_S, o_gl.CLAMP_TO_EDGE);
 o_gl.texParameteri(o_gl.TEXTURE_2D, o_gl.TEXTURE_WRAP_T, o_gl.CLAMP_TO_EDGE);
@@ -1269,8 +1346,7 @@ o_gl.texParameteri(o_gl.TEXTURE_2D, o_gl.TEXTURE_MAG_FILTER, o_gl.LINEAR);
 o_gl.bindTexture(o_gl.TEXTURE_2D, null);  // Unbind the texture
 
 
-const o_texture_krnl_blue = o_gl.createTexture();
-o_gl.bindTexture(o_gl.TEXTURE_2D, o_texture_krnl_blue);
+o_gl.bindTexture(o_gl.TEXTURE_2D, o_texture_krnl.o_texture_krnl_blue);
 o_gl.texImage2D(o_gl.TEXTURE_2D, 0, o_gl.RGBA, o_gl.RGBA, o_gl.UNSIGNED_BYTE, o_img_0);
 o_gl.texParameteri(o_gl.TEXTURE_2D, o_gl.TEXTURE_WRAP_S, o_gl.CLAMP_TO_EDGE);
 o_gl.texParameteri(o_gl.TEXTURE_2D, o_gl.TEXTURE_WRAP_T, o_gl.CLAMP_TO_EDGE);
@@ -1336,6 +1412,7 @@ let f_render_from_o_webgl_program_custom = function(
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, o_texture_previous);
     gl.uniform1i(gl.getUniformLocation(o_shader_program_display, 'o_texture_last_frame'), n_idx_texture);
+    
     // const o_ufloc_o_texture_0 = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'o_texture_last_frame');
     // o_gl.uniform1i(o_ufloc_o_texture_0, n_idx_texture);  
     // Create a Uint8Array to store the pixel data
@@ -1343,7 +1420,7 @@ let f_render_from_o_webgl_program_custom = function(
     const height = o_webgl_program.o_canvas.height;
     n_idx_texture = 1
     o_gl.activeTexture(o_gl.TEXTURE0+n_idx_texture);
-    o_gl.bindTexture(o_gl.TEXTURE_2D, o_texture_krnl_red);
+    o_gl.bindTexture(o_gl.TEXTURE_2D, o_texture_krnl.o_texture_krnl_red);
     o_state_ufloc.o_texture_krnl_red = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'o_texture_krnl_red');
     o_gl.uniform1i(o_state_ufloc.o_texture_krnl_red, n_idx_texture);  
 
@@ -1360,7 +1437,7 @@ let f_render_from_o_webgl_program_custom = function(
     );  
     n_idx_texture = 2
     o_gl.activeTexture(o_gl.TEXTURE0+n_idx_texture);
-    o_gl.bindTexture(o_gl.TEXTURE_2D, o_texture_krnl_green);
+    o_gl.bindTexture(o_gl.TEXTURE_2D, o_texture_krnl.o_texture_krnl_green);
     o_state_ufloc.o_texture_krnl_green = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'o_texture_krnl_green');
     o_gl.uniform1i(o_state_ufloc.o_texture_krnl_green, n_idx_texture);  
     o_webgl_program?.o_ctx.texImage2D(
@@ -1376,7 +1453,7 @@ let f_render_from_o_webgl_program_custom = function(
     );
     n_idx_texture = 3
     o_gl.activeTexture(o_gl.TEXTURE0+n_idx_texture);
-    o_gl.bindTexture(o_gl.TEXTURE_2D, o_texture_krnl_blue);
+    o_gl.bindTexture(o_gl.TEXTURE_2D, o_texture_krnl.o_texture_krnl_blue);
     o_state_ufloc.o_texture_krnl_blue = o_gl.getUniformLocation(o_webgl_program?.o_shader__program, 'o_texture_krnl_blue');
     o_gl.uniform1i(o_state_ufloc.o_texture_krnl_blue, n_idx_texture);  
     o_webgl_program?.o_ctx.texImage2D(
@@ -1424,34 +1501,93 @@ let f_render_from_o_webgl_program_custom = function(
 
     resizeDownsampledFramebuffer(o_webgl_program.o_ctx, o_framebuffer_downsampled, o_texture_downsampled, n_scl_x_krnl_max, n_scl_y_krnl_max);
 
-    // Bind the downsampling framebuffer
-    gl.bindFramebuffer(gl.FRAMEBUFFER, o_framebuffer_downsampled);
 
-    // Set the viewport to the downsampled resolution
-    gl.viewport(0, 0, n_scl_x_krnl_max, n_scl_y_krnl_max);
+    for(let s_channel of a_s_channel){
 
-    // Use the downsampling shader program
-    gl.useProgram(o_downsample_shader_program);
+        // resizeDownsampledFramebuffer(
+        //     o_webgl_program.o_ctx,
+        //     o_framebufferinfo[`o_framebuffer_downsampled_${s_channel}`],
+        //     o_framebufferinfo[`o_texture_downsampled_${s_channel}`],
+        //     o_state[`o_scl_krnl_${s_channel}`][0],
+        //     o_state[`o_scl_krnl_${s_channel}`][1]
+        // );
 
-    // Bind the current texture to texture unit 0
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, o_texture_current);
-    gl.uniform1i(gl.getUniformLocation(o_downsample_shader_program, 'u_texture'), 0);
+        // Bind the downsampling framebuffer
+        gl.bindFramebuffer(gl.FRAMEBUFFER, o_framebufferinfo[`o_framebuffer_downsampled_${s_channel}`]);
+    
+        let n_scl_x = o_state[`o_scl_krnl_${s_channel}`][0];
+        let n_scl_y = o_state[`o_scl_krnl_${s_channel}`][1];
+        // Set the viewport to the downsampled resolution
+        gl.viewport(0, 0, n_scl_x, n_scl_y);
+    
+        // Use the downsampling shader program
+        gl.useProgram(o_downsample_shader_program);
+    
+        // Bind the current texture to texture unit 0
+        n_idx_texture = 0
+        o_gl.activeTexture(o_gl.TEXTURE0+n_idx_texture);
+        let o_texture = o_texture_current;
+        let n_scl_x_texture = width;
+        let n_scl_y_texture = height;
+        if(o_state[`n_b_last_frame_as_krnl_${s_channel}`] === false){
+            o_texture = o_texture_krnl[`o_texture_krnl_${s_channel}`];
+            n_scl_x_texture = o_state[`o_scl_krnl_${s_channel}`][0]
+            n_scl_y_texture = o_state[`o_scl_krnl_${s_channel}`][1] 
+        }
 
-    // Set the texture size uniform
-    gl.uniform2f(gl.getUniformLocation(o_downsample_shader_program, 'u_textureSize'), width, height);
+        o_gl.bindTexture(o_gl.TEXTURE_2D, o_texture);
+        gl.uniform1i(gl.getUniformLocation(o_downsample_shader_program, 'u_texture'), n_idx_texture);
+        o_webgl_program?.o_ctx.texImage2D(
+            o_webgl_program?.o_ctx.TEXTURE_2D,
+            level,
+            internalFormat,
+            n_scl_x_texture,
+            n_scl_y_texture,
+            border,
+            srcFormat,
+            srcType,
+            o_texture_data[`o_texture_krnl_${s_channel}`],
+        );  
+        gl.uniform1f(gl.getUniformLocation(o_downsample_shader_program, 'n_b_invert'), (o_state[`n_b_invert_krnl_${s_channel}`] === true) ? 1 : 0);
+        gl.uniform1f(gl.getUniformLocation(o_downsample_shader_program, 'n_b_mirror_vertical'), (o_state[`n_b_mirror_vertical_${s_channel}`] === true) ? 1 : 0);
+        gl.uniform1f(gl.getUniformLocation(o_downsample_shader_program, 'n_b_mirror_horizontal'), (o_state[`n_b_mirror_horizontal_${s_channel}`] === true) ? 1 : 0);
+        gl.uniform1f(gl.getUniformLocation(o_downsample_shader_program, 'n_b_mirror_diagonal'), (o_state[`n_b_mirror_diagonal_${s_channel}`] === true) ? 1 : 0);
+    
+        // Set the texture size uniform
+        gl.uniform2f(gl.getUniformLocation(o_downsample_shader_program, 'u_textureSize'), n_scl_x_texture, n_scl_y_texture);
+    
+        // Bind the quad buffer
+        gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
+        gl.enableVertexAttribArray(gl.getAttribLocation(o_downsample_shader_program, 'a_position'));
+        gl.vertexAttribPointer(gl.getAttribLocation(o_downsample_shader_program, 'a_position'), 2, gl.FLOAT, false, 0, 0);
+    
+        // Draw the quad
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+    
+        // Read the downsampled pixels
+        o_framebufferinfo[`a_n_u8_last_frame_downsampled_${s_channel}`] = new Uint8Array(n_scl_x*n_scl_y * 4);
+        o_webgl_program.o_ctx.readPixels(0, 0, n_scl_x,n_scl_y, o_webgl_program.o_ctx.RGBA, o_webgl_program.o_ctx.UNSIGNED_BYTE, o_framebufferinfo[`a_n_u8_last_frame_downsampled_${s_channel}`]);
 
-    // Bind the quad buffer
-    gl.bindBuffer(gl.ARRAY_BUFFER, quadBuffer);
-    gl.enableVertexAttribArray(gl.getAttribLocation(o_downsample_shader_program, 'a_position'));
-    gl.vertexAttribPointer(gl.getAttribLocation(o_downsample_shader_program, 'a_position'), 2, gl.FLOAT, false, 0, 0);
+        let o_canvas_krnl = o_krnl_canvases[`o_krnl_canvas_${s_channel}`];
+        const o_ctx2d = o_krnl_canvases[`o_krnl_canvas_ctx_${s_channel}`];
+    
+        // Set the canvas size to match the downsampled image
+        o_canvas_krnl.width = n_scl_x;
+        o_canvas_krnl.height = n_scl_y;
+    
+        const o_image_data = new ImageData(
+            new Uint8ClampedArray(o_framebufferinfo[`a_n_u8_last_frame_downsampled_${s_channel}`]), // Convert to Uint8ClampedArray
+            n_scl_x,
+            n_scl_y
+        );
 
-    // Draw the quad
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        // console.log(
+        //     o_framebufferinfo[`a_n_u8_last_frame_downsampled_${s_channel}`]
+        // );
+        // Draw the ImageData onto the canvas
+        o_ctx2d.putImageData(o_image_data, 0, 0);
 
-    // Read the downsampled pixels
-    a_n_u8_last_frame_downsampled = new Uint8Array(n_scl_x_krnl_max*n_scl_y_krnl_max * 4);
-    o_webgl_program.o_ctx.readPixels(0, 0, n_scl_x_krnl_max,n_scl_y_krnl_max, o_webgl_program.o_ctx.RGBA, o_webgl_program.o_ctx.UNSIGNED_BYTE, a_n_u8_last_frame_downsampled);
+    }
     // console.log(a_n_u8_last_frame_downsampled)
 
     // Swap textures for the next frame
@@ -1463,30 +1599,6 @@ let f_render_from_o_webgl_program_custom = function(
 
     // Set the viewport to the downsampled resolution
     gl.viewport(0, 0, width, height);
-    
-    const o_image_data = new ImageData(
-        new Uint8ClampedArray(a_n_u8_last_frame_downsampled), // Convert to Uint8ClampedArray
-        n_scl_x_krnl_max,
-        n_scl_y_krnl_max
-    );
-    
-    for(let s_channel of ['red','green', 'blue']){
-
-        if(o_state[`n_b_last_frame_as_krnl_${s_channel}`] === true){
-            o_texture_data[`o_texture_krnl_${s_channel}`] = a_n_u8_last_frame_downsampled;
-            // Get the 2D canvas context
-            let o_canvas_krnl = o_krnl_canvases[`o_krnl_canvas_${s_channel}`];
-            const o_ctx2d = o_krnl_canvases[`o_krnl_canvas_ctx_${s_channel}`];
-        
-            // Set the canvas size to match the downsampled image
-            o_canvas_krnl.width = n_scl_x_krnl_max;
-            o_canvas_krnl.height = n_scl_y_krnl_max;
-        
-            // Draw the ImageData onto the canvas
-            o_ctx2d.putImageData(o_image_data, 0, 0);
-        }
-    }
-
     
     // o_webgl_program.o_ctx.drawArrays(o_webgl_program.o_ctx.TRIANGLE_STRIP, 0, 4);
 
@@ -1718,10 +1830,14 @@ document.body.appendChild(
                                                                 let n_f = parseFloat(o_e.target.value)
                                                                 o_state[`o_scl_krnl_${s_channel}`][0] = n_f;
                                                                 o_state[`o_scl_krnl_${s_channel}`][1] = n_f;
-                                                                let n_scl_x_krnl_max = Math.max(o_state.o_scl_krnl_red[0],Math.max(o_state.o_scl_krnl_green[0],o_state.o_scl_krnl_blue[0]));
-                                                                let n_scl_y_krnl_max = Math.max(o_state.o_scl_krnl_red[0],Math.max(o_state.o_scl_krnl_green[0],o_state.o_scl_krnl_blue[0]));
 
-                                                                resizeDownsampledFramebuffer(o_webgl_program.o_ctx, o_framebuffer_downsampled, o_texture_downsampled, n_scl_x_krnl_max, n_scl_y_krnl_max);
+                                                                resizeDownsampledFramebuffer(
+                                                                    o_webgl_program.o_ctx,
+                                                                    o_framebufferinfo[`o_framebuffer_downsampled_${s_channel}`],
+                                                                    o_framebufferinfo[`o_texture_downsampled_${s_channel}`],
+                                                                    o_state[`o_scl_krnl_${s_channel}`][0],
+                                                                    o_state[`o_scl_krnl_${s_channel}`][1]
+                                                                );
 
                                                                 f_resize_o_texture_krnl(s_channel);
                                                                 f_update_canvas_with_krnl_data(s_channel);
@@ -1740,6 +1856,46 @@ document.body.appendChild(
                                                         },
                                                         {
                                                             s_tag: 'button', 
+                                                            f_s_innerText: ()=>{
+                                                                return `${(o_state[`n_b_invert_krnl_${s_channel}`] ? '[x]': '[ ]')} invert krnl`
+                                                            },
+                                                            onclick:()=>{
+                                                                o_state[`n_b_invert_krnl_${s_channel}`] = !o_state[`n_b_invert_krnl_${s_channel}`];
+                                                            },
+                                                            a_s_prop_sync: `n_b_invert_krnl_${s_channel}`,
+                                                        },
+                                                        {
+                                                            s_tag: 'button', 
+                                                            f_s_innerText: ()=>{
+                                                                return `${(o_state[`n_b_mirror_vertical_${s_channel}`] ? '[x]': '[ ]')} mirror vertical`
+                                                            },
+                                                            onclick:()=>{
+                                                                o_state[`n_b_mirror_vertical_${s_channel}`] = !o_state[`n_b_mirror_vertical_${s_channel}`];
+                                                            },
+                                                            a_s_prop_sync: `n_b_mirror_vertical_${s_channel}`,
+                                                        },
+                                                        {
+                                                            s_tag: 'button', 
+                                                            f_s_innerText: ()=>{
+                                                                return `${(o_state[`n_b_mirror_horizontal_${s_channel}`] ? '[x]': '[ ]')} mirror horizontal`
+                                                            },
+                                                            onclick:()=>{
+                                                                o_state[`n_b_mirror_horizontal_${s_channel}`] = !o_state[`n_b_mirror_horizontal_${s_channel}`];
+                                                            },
+                                                            a_s_prop_sync: `n_b_mirror_horizontal_${s_channel}`,
+                                                        },
+                                                        {
+                                                            s_tag: 'button', 
+                                                            f_s_innerText: ()=>{
+                                                                return `${(o_state[`n_b_mirror_diagonal_${s_channel}`] ? '[x]': '[ ]')} mirror diagonal`
+                                                            },
+                                                            onclick:()=>{
+                                                                o_state[`n_b_mirror_diagonal_${s_channel}`] = !o_state[`n_b_mirror_diagonal_${s_channel}`];
+                                                            },
+                                                            a_s_prop_sync: `n_b_mirror_diagonal_${s_channel}`,
+                                                        },
+                                                        {
+                                                            s_tag: 'button', 
                                                             innerText: `randomize`,
                                                             onclick:()=>{
                                                                 let a_n_u8 = o_texture_data[`o_texture_krnl_${s_channel}`];
@@ -1750,7 +1906,6 @@ document.body.appendChild(
                                                                     // Fill random float32 values
                                                                     writeFloat32ToTexture(a_n_u8, n * 4, n2);
                                                                 }
-                                                                f_update_canvas_with_krnl_data(s_channel)
                                                             },
                                                         },
                                                         {
@@ -1762,7 +1917,6 @@ document.body.appendChild(
                                                                 for(let n = 0; n< a_n_u8.length; n+=1){
                                                                     o_texture_data[`o_texture_krnl_${s_channel}`][n] = 255;
                                                                 }
-                                                                f_update_canvas_with_krnl_data(s_channel)
                                                             },
                                                         },
                                                         {
@@ -1774,7 +1928,6 @@ document.body.appendChild(
                                                                 for(let n = 0; n< a_n_u8.length; n+=1){
                                                                     o_texture_data[`o_texture_krnl_${s_channel}`][n] = 0;
                                                                 }
-                                                                f_update_canvas_with_krnl_data(s_channel)
                                                             },
                                                         },
                                                         {
