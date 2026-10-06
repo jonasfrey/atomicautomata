@@ -1,3 +1,5 @@
+import { setupAssemblyUI } from './assembly-ui.js';
+import { setupExplorer } from './explore-ui.js';
 
 import {
     f_add_css,
@@ -742,6 +744,8 @@ f_add_css(
     `
     body{
         cursor:url(./cursor.cur), auto;
+        touch-action: none;
+        user-select: none;
         min-height: 100vh;
         min-width: 100vw;
         /* background: rgba(0,0,0,0.84);*/
@@ -753,7 +757,7 @@ f_add_css(
         width: 100%;
         height: 100%;
         position:fixed;
-        z-index:-1;
+        z-index:0;
         image-rendering: pixelated;
     }
     #o_el_time{
@@ -1667,6 +1671,7 @@ let f_render_from_o_webgl_program_custom = function(
 let o_ufloc__n_ms_time = o_webgl_program?.o_ctx.getUniformLocation(o_webgl_program?.o_shader__program, 'n_ms_time');
 o_webgl_program?.o_ctx.uniform1f(o_ufloc__n_ms_time, 0.5);
 
+let b_paused = false;
 let n_id_raf = 0;
 let n_ms_last = 0;
 let n_ms_sum = 0;
@@ -1686,7 +1691,7 @@ let f_raf = function(n_ms){
     // ------------- performance measuring: end
     o_webgl_program?.o_ctx.uniform1f(o_ufloc__n_ms_time, globalThis.performance.now());
     // console.log(globalThis.performance.now())
-    if(n_ms_delta > (1000/o_state.n_fps)){   
+    if(!b_paused && n_ms_delta > (1000/o_state.n_fps)){
         f_render_from_o_webgl_program_custom(o_webgl_program);
         n_ms_last = n_ms
 
@@ -1747,7 +1752,7 @@ o_ws.onmessage = function(o_e) {
 
 };
 globalThis.addEventListener('pointerdown', (o_e)=>{
-    o_ws.send('pointerdown on client')
+    if (o_ws.readyState === WebSocket.OPEN) o_ws.send('pointerdown on client')
 })
 
 let f_update_color = function(o_el){
@@ -1764,8 +1769,7 @@ let f_update_color = function(o_el){
     }
 }
 let o_info_krnl = null;
-document.body.appendChild(
-    await f_o_html_from_o_js(
+const assemblyRoot = await f_o_html_from_o_js(
         {
             style: "width:100vw;user-select: none;",
             f_a_o: async ()=>[
@@ -1995,6 +1999,7 @@ document.body.appendChild(
                                                                         },
                                                                         {
                                                                             s_tag: "select", 
+                                                                            f_after_render: element => { requestAnimationFrame(() => { element.value = o_state[`s_rule_${s_channel}`]; }); },
                                                                             a_s_prop_sync: `s_rule_${s_channel}`, 
                                                                             onchange: ()=>{
                                                                                 // update automata
@@ -2180,17 +2185,86 @@ document.body.appendChild(
             ]
         }, 
         o_state
-    )
-)
+    );
+document.body.append(assemblyRoot);
+const assemblyUI = setupAssemblyUI(assemblyRoot, {
+    pause: () => (b_paused = !b_paused),
+    record: () => {
+        if (!o_media_recorder) throw new Error('This browser does not support video recording');
+        o_state.b_recording = !o_state.b_recording;
+        if (o_state.b_recording) { recordedChunks.length = 0; o_media_recorder.start(); }
+        else o_media_recorder.stop();
+        return o_state.b_recording;
+    },
+    snapshot: () => {
+        f_render_from_o_webgl_program_custom(o_webgl_program);
+        const link = document.createElement('a');
+        link.download = 'assembly.png'; link.href = o_canvas.toDataURL('image/png'); link.click();
+    },
+});
+
+
+function saveSnapshot() {
+    f_render_from_o_webgl_program_custom(o_webgl_program);
+    const link = document.createElement('a');
+    link.download = 'assembly.png'; link.href = o_canvas.toDataURL('image/png'); link.click();
+}
+function restartPattern() {
+    f_randomize_texture_data(o_texture_main1);
+    f_randomize_texture_data(o_texture_main2);
+    o_gl.useProgram(o_webgl_program.o_shader__program);
+    o_gl.uniform1f(o_ufloc__n_ms_time, Math.max(1001, performance.now()));
+    f_render_from_o_webgl_program_custom(o_webgl_program);
+}
+function applyPreset(id) {
+    const name = { waves: 'waves', worms: 'inverse gaussian worms', pulse: 'Threshold Invert' }[id];
+    const rule = a_o_automata.find(item => item.s_name === name);
+    for (const channel of o_state.a_s_channel) {
+        o_state[`s_rule_${channel}`] = name;
+        o_state[`n_idx_s_rule_${channel}`] = a_o_automata.indexOf(rule);
+        o_state[`o_automata_${channel}`] = rule;
+        for (const prop of ['n_b_normalize_krnl', 'n_b_last_frame_as_krnl', 'n_b_invert_krnl', 'n_b_mirror_vertical', 'n_b_mirror_horizontal', 'n_b_mirror_diagonal']) o_state[`${prop}_${channel}`] = false;
+        o_state[`o_scl_krnl_${channel}`][0] = 3;
+        o_state[`o_scl_krnl_${channel}`][1] = 3;
+        const kernel = rule.o_krnl || Array(9).fill(1 / 9);
+        const data = new Uint8Array(36);
+        kernel.forEach((value, index) => {
+            const byte = Math.round((value + 1) * 127.5);
+            data.fill(byte, index * 4, index * 4 + 4);
+        });
+        o_texture_data[`o_texture_krnl_${channel}`] = data;
+        for (const parameter of ['n_1', 'n_2', 'n_3']) o_state[`${parameter}_${channel}`] = rule[parameter] ?? 0;
+        f_update_canvas_with_krnl_data(channel);
+    }
+    // The legacy select renderer does not update its value on programmatic edits.
+    requestAnimationFrame(() => { document.querySelectorAll('.assembly-panel select').forEach(select => { select.value = name; }); });
+    restartPattern();
+}
+setupExplorer({
+    preset: applyPreset,
+    restart: restartPattern,
+    resume: () => { b_paused = false; assemblyUI.setPaused(false); },
+    speed: value => { o_state.n_fps = value; },
+    snapshot: saveSnapshot,
+});
+// Pointer events make painting work with mouse, pen, and touch.
+function updateBrush(event) {
+    o_state.o_trn_mouse = [event.clientX * o_state.n_factor_resolution, (innerHeight - event.clientY) * o_state.n_factor_resolution];
+}
+addEventListener('pointerdown', event => {
+    if (event.button !== 0) return;
+    updateBrush(event); o_state.n_b_mouse_down_left = 1;
+    b_paused = false; assemblyUI.setPaused(false);
+});
+addEventListener('pointermove', updateBrush);
+for (const type of ['pointerup', 'pointercancel', 'blur']) addEventListener(type, () => { o_state.n_b_mouse_down_left = 0; });
 
 window.onkeydown = function(o_e){
 
     o_state.b_ctrl_down = o_e.ctrlKey;
 }
 window.onkeyup = function(o_e){
-    if(o_e.ctrlKey){
-        o_state.b_ctrl_down = false;
-    }
+    o_state.b_ctrl_down = o_e.ctrlKey;
 }
 window.onmousedown = function(
     o_e
@@ -2223,40 +2297,27 @@ window.onmousemove = function(o_e){
 }
 
 
-// Assuming you have a WebGL canvas with id 'glcanvas'
-const o_stream = o_canvas.captureStream(30); // 30 FPS
-const b_mp4_supported = MediaRecorder.isTypeSupported('video/mp4; codecs=avc1.64001e');
-if (!b_mp4_supported) {
-    console.warn('MP4 (H.264) recording is not supported in this browser.');
-}else{
-    // alert('supported')
-}
-
+// Recording is optional: unsupported browsers still get the assembly controls.
 const recordedChunks = [];
-let s_mime = (b_mp4_supported) ? 'video/mp4; codecs=avc1.64001e': 'video/webm; codecs=vp9'; // Use H.264 codec for MP4
-let s_extension_video = s_mime.split(';').shift().split('/').pop();
-o_media_recorder = new MediaRecorder(o_stream, {
-    mimeType: s_mime, 
-    videoBitsPerSecond: 25000000
-});
-
-o_media_recorder.ondataavailable = function(event) {
-    if (event.data.size > 0) {
-        recordedChunks.push(event.data);
-    }
-};
-
-o_media_recorder.onstop = function() {
-    const blob = new Blob(recordedChunks, { type: 'video/webm' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.style.display = 'none';
-    a.href = url;
-    a.download = `recording.${s_extension_video}`;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-    }, 100);
-};
+const s_mime = typeof MediaRecorder !== 'undefined'
+    ? ['video/mp4; codecs=avc1.64001e', 'video/webm; codecs=vp9', 'video/webm']
+        .find(type => MediaRecorder.isTypeSupported(type))
+    : null;
+const s_extension_video = s_mime?.startsWith('video/mp4') ? 'mp4' : 'webm';
+if (s_mime && o_canvas.captureStream) {
+    o_media_recorder = new MediaRecorder(o_canvas.captureStream(30), {
+        mimeType: s_mime,
+        videoBitsPerSecond: 25000000,
+    });
+    o_media_recorder.ondataavailable = event => {
+        if (event.data.size > 0) recordedChunks.push(event.data);
+    };
+    o_media_recorder.onstop = () => {
+        const blob = new Blob(recordedChunks, { type: s_mime });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url; link.download = `recording.${s_extension_video}`;
+        link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    };
+}
